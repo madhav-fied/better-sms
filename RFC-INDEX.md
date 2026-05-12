@@ -2,7 +2,7 @@
 
 **Base URL:** `https://bp3150.skeducations.com`  
 **Version:** 1.1 Draft  
-**Last Updated:** 2026-05-12 (Communications module added; /communications/ prefix applied)
+**Last Updated:** 2026-05-12 (RFC-017 Exams + RFC-018 Results & Marksheets added)
 
 ---
 
@@ -25,6 +25,9 @@
 | [RFC-013](rfc-013-concerns.md) | Concern Management | Draft | Parent-submitted concerns, threaded replies, status workflow |
 | [RFC-014](rfc-014-syllabus.md) | Syllabus | Draft | Per class+subject syllabus with topics; teacher/admin create, parent read |
 | [RFC-015](rfc-015-newsletter.md) | Newsletter | Draft | School-wide periodic newsletter; teacher/admin create, all read |
+| [RFC-016](rfc-016-timetable.md) | Timetable Management | Draft | Period config (school-wide), per-class weekly schedule |
+| [RFC-017](rfc-017-exams.md) | Exam Management | Draft | Exam creation, per-class subject schedule, TBD dates, publish + notify |
+| [RFC-018](rfc-018-results.md) | Results & Marksheets | Draft | Mark entry, subject publish, parent view + acknowledge, marksheet PDF |
 
 ---
 
@@ -247,8 +250,52 @@ DELETE /communications/newsletters/{id}/attachments/{attachment_id}
 
 > **FastAPI router note:** Within `/communications/concerns`, register `GET /concerns/summary` **before** `GET /concerns/{id}` — otherwise FastAPI matches `"summary"` as a concern ID. Same applies to `/notices`, `/syllabus`, and `/newsletters` if stats endpoints are added.
 
+### Timetable (RFC-016)
+```
+GET    /timetable/period-config
+PUT    /timetable/period-config
+
+POST   /timetable
+GET    /timetable
+GET    /timetable/{id}
+PUT    /timetable/{id}
+POST   /timetable/{id}/publish
+POST   /timetable/{id}/unpublish
+DELETE /timetable/{id}
+```
+
+> **FastAPI router note:** Register `GET /timetable/period-config` **before** `GET /timetable/{id}`.
+
+### Exams (RFC-017)
+```
+POST   /exams
+GET    /exams
+GET    /exams/{id}
+PUT    /exams/{id}
+DELETE /exams/{id}
+POST   /exams/{id}/publish
+POST   /exams/{id}/complete
+GET    /exams/{id}/schedule
+PUT    /exams/{id}/schedule
+PATCH  /exams/{id}/schedule/{entry_id}
+```
+
+### Results & Marksheets (RFC-018)
+```
+POST   /results/bulk
+POST   /results/publish
+POST   /results/acknowledge
+GET    /results/marksheet
+GET    /results/class-summary
+GET    /results
+GET    /results/{id}
+PUT    /results/{id}
+```
+
+> **FastAPI router note:** Register `GET /results/marksheet`, `POST /results/bulk`, `POST /results/publish`, `POST /results/acknowledge`, and `GET /results/class-summary` **before** `GET /results/{id}`.
+
 ---
 
 ## Phase 2 Modules (Stub — not in these RFCs)
 
-Fees, Exam, Timetable, Transport, Events, Visitors, Income/Expense, Reports, Masters
+Fees, Transport, Events, Visitors, Income/Expense, Reports, Masters
