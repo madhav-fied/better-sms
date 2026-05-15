@@ -1,0 +1,22 @@
+import apiClient from './client';
+
+export const getEnquiries = (params?: Record<string, unknown>) =>
+  apiClient.get('/enquiries', { params }).then((r) => r.data);
+
+export const getEnquiry = (id: string) =>
+  apiClient.get(`/enquiries/${id}`).then((r) => r.data);
+
+export const convertEnquiry = (id: string) =>
+  apiClient.post(`/enquiries/${id}/convert`).then((r) => r.data);
+
+export const getRegistrations = (params?: Record<string, unknown>) =>
+  apiClient.get('/registrations', { params }).then((r) => r.data);
+
+export const getRegistration = (id: string) =>
+  apiClient.get(`/registrations/${id}`).then((r) => r.data);
+
+export const acceptRegistration = (id: string) =>
+  apiClient.post(`/registrations/${id}/accept`).then((r) => r.data);
+
+export const rejectRegistration = (id: string, reason: string) =>
+  apiClient.post(`/registrations/${id}/reject`, { reason }).then((r) => r.data);
