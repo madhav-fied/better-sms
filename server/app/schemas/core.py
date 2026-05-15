@@ -9,6 +9,8 @@ class SchoolCreate(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
+    attendance_mode: str = "period"
+    uses_saturday: bool = False
 
 
 class SchoolUpdate(BaseModel):
@@ -17,6 +19,8 @@ class SchoolUpdate(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
+    attendance_mode: Optional[str] = None
+    uses_saturday: Optional[bool] = None
 
 
 class SchoolOut(BaseModel):
@@ -27,6 +31,8 @@ class SchoolOut(BaseModel):
     phone: Optional[str]
     email: Optional[str]
     is_active: bool
+    attendance_mode: str
+    uses_saturday: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

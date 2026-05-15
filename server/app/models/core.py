@@ -18,6 +18,11 @@ class School(Base):
     phone: Mapped[Optional[str]] = mapped_column(sa.String(20), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(sa.String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, default=True, nullable=False)
+    attendance_mode: Mapped[str] = mapped_column(
+        sa.String(20), nullable=False, default="period",
+        server_default="period"
+    )
+    uses_saturday: Mapped[bool] = mapped_column(sa.Boolean, default=False, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False)
 
     academic_years: Mapped[list["AcademicYear"]] = relationship("AcademicYear", back_populates="school")

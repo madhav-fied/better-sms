@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.timetable import PeriodConfig, Timetable
 from app.schemas.timetable import PeriodConfigUpdate, PeriodConfigOut, TimetableCreate, TimetableUpdate, TimetableOut
 from app.schemas.common import Response, ok
@@ -25,7 +25,12 @@ async def get_period_config(db: AsyncSession = Depends(get_db), user: dict = Dep
 
 
 @router.put("/timetable/period-config", response_model=Response)
-async def upsert_period_config(body: PeriodConfigUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def upsert_period_config(
+    body: PeriodConfigUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     school_id = user["school_id"]
     res = await db.execute(select(PeriodConfig).where(PeriodConfig.school_id == school_id))
     config = res.scalar_one_or_none()
@@ -47,7 +52,12 @@ async def upsert_period_config(body: PeriodConfigUpdate, db: AsyncSession = Depe
 
 
 @router.post("/timetable", response_model=Response)
-async def create_timetable(body: TimetableCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_timetable(
+    body: TimetableCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     tt = Timetable(school_id=user["school_id"], created_by=user["user_id"], **body.model_dump())
     db.add(tt)
     await db.flush()
@@ -89,7 +99,13 @@ async def get_timetable(tt_id: str, db: AsyncSession = Depends(get_db), user: di
 
 
 @router.put("/timetable/{tt_id}", response_model=Response)
-async def update_timetable(tt_id: str, body: TimetableUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_timetable(
+    tt_id: str,
+    body: TimetableUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Timetable).where(Timetable.id == tt_id, Timetable.school_id == user["school_id"]))
     tt = res.scalar_one_or_none()
     if not tt:
@@ -103,7 +119,12 @@ async def update_timetable(tt_id: str, body: TimetableUpdate, db: AsyncSession =
 
 
 @router.post("/timetable/{tt_id}/publish", response_model=Response)
-async def publish_timetable(tt_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def publish_timetable(
+    tt_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Timetable).where(Timetable.id == tt_id, Timetable.school_id == user["school_id"]))
     tt = res.scalar_one_or_none()
     if not tt:
@@ -116,7 +137,12 @@ async def publish_timetable(tt_id: str, db: AsyncSession = Depends(get_db), user
 
 
 @router.delete("/timetable/{tt_id}", response_model=Response)
-async def delete_timetable(tt_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_timetable(
+    tt_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Timetable).where(Timetable.id == tt_id, Timetable.school_id == user["school_id"]))
     tt = res.scalar_one_or_none()
     if not tt:

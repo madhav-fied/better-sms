@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.admission import Enquiry, Registration, ParentGuardian
 from app.models.core import AcademicYear
 from app.schemas.admission import (
@@ -38,9 +38,13 @@ def _enq_no(year: int, seq: int) -> str:
 # ── Enquiries ─────────────────────────────────────────────────────────────────
 
 @router.post("/enquiries", response_model=Response)
-async def create_enquiry(body: EnquiryCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_enquiry(
+    body: EnquiryCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     school_id = user["school_id"]
-    # Generate enq_no: find active AY start year
     ay_res = await db.execute(
         select(AcademicYear).where(AcademicYear.school_id == school_id, AcademicYear.is_active == True)
     )
@@ -85,7 +89,13 @@ async def get_enquiry(enq_id: str, db: AsyncSession = Depends(get_db), user: dic
 
 
 @router.put("/enquiries/{enq_id}", response_model=Response)
-async def update_enquiry(enq_id: str, body: EnquiryUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_enquiry(
+    enq_id: str,
+    body: EnquiryUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Enquiry).where(Enquiry.id == enq_id, Enquiry.school_id == user["school_id"]))
     enq = res.scalar_one_or_none()
     if not enq:
@@ -98,7 +108,13 @@ async def update_enquiry(enq_id: str, body: EnquiryUpdate, db: AsyncSession = De
 
 
 @router.post("/enquiries/{enq_id}/convert", response_model=Response)
-async def convert_enquiry(enq_id: str, body: RegistrationCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def convert_enquiry(
+    enq_id: str,
+    body: RegistrationCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     school_id = user["school_id"]
     res = await db.execute(select(Enquiry).where(Enquiry.id == enq_id, Enquiry.school_id == school_id))
     enq = res.scalar_one_or_none()
@@ -125,7 +141,12 @@ async def convert_enquiry(enq_id: str, body: RegistrationCreate, db: AsyncSessio
 
 
 @router.patch("/enquiries/{enq_id}/reject", response_model=Response)
-async def reject_enquiry(enq_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def reject_enquiry(
+    enq_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Enquiry).where(Enquiry.id == enq_id, Enquiry.school_id == user["school_id"]))
     enq = res.scalar_one_or_none()
     if not enq:
@@ -139,7 +160,12 @@ async def reject_enquiry(enq_id: str, db: AsyncSession = Depends(get_db), user: 
 # ── Registrations ─────────────────────────────────────────────────────────────
 
 @router.post("/registrations", response_model=Response)
-async def create_registration(body: RegistrationCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_registration(
+    body: RegistrationCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     school_id = user["school_id"]
     guardians_data = body.parent_guardians or []
     reg = Registration(
@@ -195,7 +221,12 @@ async def get_registration(reg_id: str, db: AsyncSession = Depends(get_db), user
 
 
 @router.post("/registrations/{reg_id}/accept", response_model=Response)
-async def accept_registration(reg_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def accept_registration(
+    reg_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Registration).where(Registration.id == reg_id, Registration.school_id == user["school_id"]))
     reg = res.scalar_one_or_none()
     if not reg:
@@ -207,7 +238,12 @@ async def accept_registration(reg_id: str, db: AsyncSession = Depends(get_db), u
 
 
 @router.post("/registrations/{reg_id}/reject", response_model=Response)
-async def reject_registration(reg_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def reject_registration(
+    reg_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Registration).where(Registration.id == reg_id, Registration.school_id == user["school_id"]))
     reg = res.scalar_one_or_none()
     if not reg:
@@ -221,7 +257,12 @@ async def reject_registration(reg_id: str, db: AsyncSession = Depends(get_db), u
 # ── Admit Student ─────────────────────────────────────────────────────────────
 
 @router.post("/students/admit", response_model=Response)
-async def admit_student(body: AdmitStudentIn, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def admit_student(
+    body: AdmitStudentIn,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     from app.models.student import Student
     from app.schemas.student import StudentOut
 

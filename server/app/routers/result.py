@@ -2,9 +2,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from pydantic import BaseModel
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.result import Result
 from app.models.student import Student
 from app.schemas.result import ResultBulkIn, ResultPublishIn, ResultUpdate, ResultOut
@@ -12,15 +13,25 @@ from app.schemas.common import Response, ok
 
 router = APIRouter()
 
-# IMPORTANT: bulk/publish/marksheet/class-summary MUST come before /{id}
+# IMPORTANT: bulk/publish/unpublish/marksheet/class-summary MUST come before /{id}
+
+
+class ResultUnpublishIn(BaseModel):
+    exam_id: str
+    class_section_id: str
+    subject: str
 
 
 @router.post("/results/bulk", response_model=Response)
-async def bulk_upsert_results(body: ResultBulkIn, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def bulk_upsert_results(
+    body: ResultBulkIn,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     now = datetime.utcnow()
     created = []
     for item in body.results:
-        # Check for existing
         existing_res = await db.execute(
             select(Result).where(
                 Result.exam_id == item.exam_id,
@@ -54,7 +65,12 @@ async def bulk_upsert_results(body: ResultBulkIn, db: AsyncSession = Depends(get
 
 
 @router.post("/results/publish", response_model=Response)
-async def publish_results(body: ResultPublishIn, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def publish_results(
+    body: ResultPublishIn,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     now = datetime.utcnow()
     q = select(Result).where(Result.exam_id == body.exam_id)
     if body.class_section_id:
@@ -68,6 +84,27 @@ async def publish_results(body: ResultPublishIn, db: AsyncSession = Depends(get_
         r.published_by = user["user_id"]
     await db.flush()
     return ok({"published_count": len(results)})
+
+
+@router.post("/results/unpublish", response_model=Response)
+async def unpublish_results(
+    body: ResultUnpublishIn,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    q = select(Result).where(
+        Result.exam_id == body.exam_id,
+        Result.class_section_id == body.class_section_id,
+        Result.subject == body.subject,
+    )
+    results = (await db.execute(q)).scalars().all()
+    for r in results:
+        r.is_published = False
+        r.published_at = None
+        r.published_by = None
+    await db.flush()
+    return ok({"unpublished_count": len(results)})
 
 
 @router.get("/results/marksheet", response_model=Response)
@@ -101,7 +138,6 @@ async def get_class_summary(
 ):
     q = select(Result).where(Result.exam_id == exam_id, Result.class_section_id == class_section_id)
     results = (await db.execute(q)).scalars().all()
-    # Group by student
     from collections import defaultdict
     by_student: dict = defaultdict(list)
     for r in results:
@@ -151,7 +187,13 @@ async def get_result(result_id: str, db: AsyncSession = Depends(get_db), user: d
 
 
 @router.put("/results/{result_id}", response_model=Response)
-async def update_result(result_id: str, body: ResultUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_result(
+    result_id: str,
+    body: ResultUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Result).where(Result.id == result_id))
     result = res.scalar_one_or_none()
     if not result:

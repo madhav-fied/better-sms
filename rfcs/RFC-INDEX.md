@@ -2,7 +2,7 @@
 
 **Base URL:** `https://bp3150.skeducations.com`  
 **Version:** 1.1 Draft  
-**Last Updated:** 2026-05-12 (RFC-017 Exams + RFC-018 Results & Marksheets added)
+**Last Updated:** 2026-05-15 (RFC-019 Auth & Permissions added)
 
 ---
 
@@ -10,24 +10,25 @@
 
 | # | Title | Status | Scope |
 |---|-------|--------|-------|
-| [RFC-001](rfc-001-core-setup.md) | Core Setup & Multi-Tenancy | Draft | Schools, Academic Years, Class Sections |
-| [RFC-002](rfc-002-admission-pipeline.md) | Admission Pipeline | Draft | Enquiry → Registration → Admission |
-| [RFC-003](rfc-003-student-management.md) | Student Management | Draft | Student CRUD, 360° View, Migration |
-| [RFC-004](rfc-004-staff-management.md) | Staff Management | Draft | Staff CRUD, Teacher Subjects |
-| [RFC-005](rfc-005-document-management.md) | Document Management | Draft | S3 Uploads, Pre-signed URLs |
-| [RFC-006](rfc-006-dashboard.md) | Dashboard | Draft | All Dashboard Widgets |
-| [RFC-007](rfc-007-student-attendance.md) | Student Attendance | Draft | Mark, view, override per period/session |
-| [RFC-008](rfc-008-staff-attendance.md) | Staff Attendance | Draft | Daily marking, filtering, summaries |
-| [RFC-009](rfc-009-leave-management.md) | Leave Management | Draft | Apply, approve, reject leaves (students & staff) |
-| [RFC-010](rfc-010-attendance-history.md) | Attendance History | Draft | History table, monthly summary, low-attendance report |
-| [RFC-011](rfc-011-homework.md) | Homework Management | Draft | Assign, view, attach images; teacher/student/admin scoping |
-| [RFC-012](rfc-012-notices.md) | Notices | Draft | Create, publish, target by class or school-wide; parent/student read |
-| [RFC-013](rfc-013-concerns.md) | Concern Management | Draft | Parent-submitted concerns, threaded replies, status workflow |
-| [RFC-014](rfc-014-syllabus.md) | Syllabus | Draft | Per class+subject syllabus with topics; teacher/admin create, parent read |
-| [RFC-015](rfc-015-newsletter.md) | Newsletter | Draft | School-wide periodic newsletter; teacher/admin create, all read |
-| [RFC-016](rfc-016-timetable.md) | Timetable Management | Draft | Period config (school-wide), per-class weekly schedule |
-| [RFC-017](rfc-017-exams.md) | Exam Management | Draft | Exam creation, per-class subject schedule, TBD dates, publish + notify |
-| [RFC-018](rfc-018-results.md) | Results & Marksheets | Draft | Mark entry, subject publish, parent view + acknowledge, marksheet PDF |
+| [RFC-001](rfc-001-core-setup.md) | Core Setup & Multi-Tenancy | Active | Schools, Academic Years, Class Sections |
+| [RFC-002](rfc-002-admission-pipeline.md) | Admission Pipeline | Active | Enquiry → Registration → Admission |
+| [RFC-003](rfc-003-student-management.md) | Student Management | Active | Student CRUD, 360° View, Migration |
+| [RFC-004](rfc-004-staff-management.md) | Staff Management | Active | Staff CRUD, Teacher Subjects |
+| [RFC-005](rfc-005-document-management.md) | Document Management | Active | S3 Uploads, Pre-signed URLs |
+| [RFC-006](rfc-006-dashboard.md) | Dashboard | Active | All Dashboard Widgets |
+| [RFC-007](rfc-007-student-attendance.md) | Student Attendance | Active | Mark, view, override per period/session |
+| [RFC-008](rfc-008-staff-attendance.md) | Staff Attendance | Active | Daily marking, filtering, summaries |
+| [RFC-009](rfc-009-leave-management.md) | Leave Management | Active | Apply, approve, reject leaves (students & staff) |
+| [RFC-010](rfc-010-attendance-history.md) | Attendance History | Active | History table, monthly summary, low-attendance report |
+| [RFC-011](rfc-011-homework.md) | Homework Management | Active | Assign, view, attach images; teacher/student/admin scoping |
+| [RFC-012](rfc-012-notices.md) | Notices | Active | Create, publish, target by class or school-wide; parent/student read |
+| [RFC-013](rfc-013-concerns.md) | Concern Management | Active | Parent-submitted concerns, threaded replies, status workflow |
+| [RFC-014](rfc-014-syllabus.md) | Syllabus | Active | Per class+subject syllabus with topics; teacher/admin create, parent read |
+| [RFC-015](rfc-015-newsletter.md) | Newsletter | Active | School-wide periodic newsletter; teacher/admin create, all read |
+| [RFC-016](rfc-016-timetable.md) | Timetable Management | Active | Period config (school-wide), per-class weekly schedule |
+| [RFC-017](rfc-017-exams.md) | Exam Management | Active | Exam creation, per-class subject schedule, TBD dates, publish + notify |
+| [RFC-018](rfc-018-results.md) | Results & Marksheets | Active | Mark entry, subject publish, parent view + acknowledge, marksheet PDF |
+| [RFC-019](rfc-019-auth-permissions.md) | Authentication & Permissions | Active | SMS OTP login, roles, session management, permission matrix |
 
 ---
 
@@ -141,7 +142,7 @@ GET    /dashboard/enquiry-chart
 
 ## Global Conventions
 
-- **Auth:** JWT — `school_id` extracted from token. Superadmin may pass `?school_id=` override.
+- **Auth:** Opaque bearer token — `school_id` extracted from session record in DB. Superadmin uses static API key from env.
 - **Response envelope:** `{ success: bool, data: any, error?: str, meta?: PaginationMeta }`
 - **Dates:** ISO 8601 — `YYYY-MM-DD`
 - **Pagination:** `?page=1&limit=20` on all list endpoints
@@ -284,6 +285,7 @@ PATCH  /exams/{id}/schedule/{entry_id}
 ```
 POST   /results/bulk
 POST   /results/publish
+POST   /results/unpublish
 POST   /results/acknowledge
 GET    /results/marksheet
 GET    /results/class-summary
@@ -293,6 +295,30 @@ PUT    /results/{id}
 ```
 
 > **FastAPI router note:** Register `GET /results/marksheet`, `POST /results/bulk`, `POST /results/publish`, `POST /results/acknowledge`, and `GET /results/class-summary` **before** `GET /results/{id}`.
+
+---
+
+### Auth & Permissions (RFC-019)
+```
+POST   /auth/otp/request
+POST   /auth/otp/verify
+POST   /auth/logout
+GET    /auth/me
+
+POST   /users
+GET    /users
+GET    /users/{id}
+PATCH  /users/{id}/status
+DELETE /users/{id}/sessions
+```
+
+### Subjects (Master List)
+```
+POST   /subjects
+GET    /subjects
+PUT    /subjects/{id}
+DELETE /subjects/{id}
+```
 
 ---
 

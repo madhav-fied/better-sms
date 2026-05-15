@@ -1,6 +1,6 @@
 # RFC-004: Staff Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Staff registration, CRUD, teacher-subject assignments, specialization dashboard  
 **Actors:** Admin, HR
 
@@ -315,8 +315,8 @@ Note: Only returns staff where category = "teacher" and status = "active".
 
 ## 6. Open Questions
 
-- [ ] Can a staff member be assigned as class teacher for multiple sections? Currently allowed with a warning — confirm if it should be blocked.
-- [ ] When a teacher is deactivated, should their TeacherSubject assignments be soft-deleted or preserved?
-- [ ] Is `emp_code` auto-generated or always manually entered by admin?
-- [ ] Staff login — is there a portal for teachers to view their timetable/homework assignments? (Phase 2 likely)
-- [ ] Grade field — what does it represent? Pay grade, designation grade? Needs clarification.
+- [x] Can a staff member be assigned as class teacher for multiple sections? Decision: allowed with warning (not blocked).
+- [x] When a teacher is deactivated, should their TeacherSubject assignments be soft-deleted or preserved? Decision: preserved (not deleted).
+- [x] Is `emp_code` auto-generated or always manually entered by admin? Decision: manually entered by admin.
+- [x] Staff login — is there a portal for teachers to view their timetable/homework assignments? Decision: Phase 2.
+- [x] Grade field — what does it represent? Decision: pay/designation grade; free text for now.

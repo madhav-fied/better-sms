@@ -1,6 +1,6 @@
 # RFC-002: Admission Pipeline
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Enquiry → Registration → Admission  
 **Actors:** Receptionist, Admin, Parent (future)
 
@@ -421,7 +421,7 @@ Note: rejected registrations cannot be re-opened. Create a new one.
 
 ## 7. Open Questions
 
-- [ ] Can a registration be re-opened after rejection, or is a new submission required?
-- [ ] Is there a capacity limit per class section? If so, what happens when full — hard block or waitlist?
-- [ ] Should enquiry conversion auto-create a registration draft (pending) or immediately submit it?
-- [ ] Online parent self-registration portal — Phase 1 or Phase 2?
+- [x] Can a registration be re-opened after rejection, or is a new submission required? Decision: new registration required (no re-open).
+- [x] Is there a capacity limit per class section? Decision: not implemented (no capacity field).
+- [x] Should enquiry conversion auto-create a registration draft (pending) or immediately submit it? Decision: auto-creates a registration in pending status.
+- [x] Online parent self-registration portal — Phase 1 or Phase 2? Decision: Phase 2.

@@ -1,6 +1,6 @@
 # RFC-012: Notices
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Notice creation, targeting, publishing; parent/student view; admin oversight  
 **Actors:** Admin (create, manage all), Teacher (create for own classes), Parent / Student (read-only)  
 **Base path:** `/communications/notices`
@@ -447,9 +447,9 @@ Side effects: removes S3 object + DB record
 
 ## 10. Open Questions
 
-- [ ] Can a teacher send a notice to a class section they're assigned to but don't personally teach (e.g. they're the class teacher but teach a different subject)? Currently gated on TeacherSubject mapping — should the `class_teacher_id` on ClassSection also grant notice access?
-- [ ] Read receipts — track which parents have opened a notice? Phase 2 confirmed, but flag now if the DB schema needs a `notice_reads` table from day one.
-- [ ] Push / SMS notification on publish — notify parents when a new notice is published? Phase 1 or 2?
-- [ ] Can the target of a published notice be changed (e.g. add a class to an existing notice)? Currently blocked — admin must create a new notice. Confirm this is acceptable.
-- [ ] Notice expiry — should notices auto-archive after N days? Or remain until manually archived?
-- [ ] Parent with children in multiple classes — confirmed deduplicated in the feed. Verify this is acceptable and not confusing (e.g. the same school-wide notice shown once, not twice).
+- [x] Can a teacher send a notice to a class section they're the class teacher for but don't personally teach? Decision: `class_teacher_id` grants targeting rights (additive to TeacherSubject).
+- [x] Read receipts — track which parents have opened a notice? Decision: Phase 2 (no `notice_reads` table in Phase 1).
+- [x] Push / SMS notification on publish — Phase 1 or 2? Decision: Phase 2.
+- [x] Can the target of a published notice be changed? Decision: not allowed; create new notice.
+- [x] Notice expiry — auto-archive after N days? Decision: no auto-archive in Phase 1.
+- [x] Parent with children in multiple classes — school-wide notice shown once. Decision: confirmed; school-wide notice shown once.

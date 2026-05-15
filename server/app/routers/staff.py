@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.staff import Staff, TeacherSubject
 from app.schemas.staff import StaffCreate, StaffUpdate, StaffOut, TeacherSubjectCreate, TeacherSubjectOut
 from app.schemas.common import Response, ok
@@ -12,7 +12,12 @@ router = APIRouter()
 
 
 @router.post("/staff", response_model=Response)
-async def create_staff(body: StaffCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_staff(
+    body: StaffCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     school_id = user["school_id"]
     staff = Staff(school_id=school_id, **body.model_dump())
     db.add(staff)
@@ -52,7 +57,13 @@ async def get_staff(staff_id: str, db: AsyncSession = Depends(get_db), user: dic
 
 
 @router.put("/staff/{staff_id}", response_model=Response)
-async def update_staff(staff_id: str, body: StaffUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_staff(
+    staff_id: str,
+    body: StaffUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Staff).where(Staff.id == staff_id, Staff.school_id == user["school_id"]))
     staff = res.scalar_one_or_none()
     if not staff:
@@ -65,7 +76,12 @@ async def update_staff(staff_id: str, body: StaffUpdate, db: AsyncSession = Depe
 
 
 @router.patch("/staff/{staff_id}/status", response_model=Response)
-async def toggle_staff_status(staff_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def toggle_staff_status(
+    staff_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Staff).where(Staff.id == staff_id, Staff.school_id == user["school_id"]))
     staff = res.scalar_one_or_none()
     if not staff:
@@ -77,7 +93,12 @@ async def toggle_staff_status(staff_id: str, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/teacher-subjects", response_model=Response)
-async def create_teacher_subject(body: TeacherSubjectCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_teacher_subject(
+    body: TeacherSubjectCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     school_id = user["school_id"]
     ts = TeacherSubject(school_id=school_id, **body.model_dump())
     db.add(ts)
@@ -108,7 +129,12 @@ async def list_teacher_subjects(
 
 
 @router.delete("/teacher-subjects/{ts_id}", response_model=Response)
-async def delete_teacher_subject(ts_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_teacher_subject(
+    ts_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(TeacherSubject).where(TeacherSubject.id == ts_id, TeacherSubject.school_id == user["school_id"]))
     ts = res.scalar_one_or_none()
     if not ts:

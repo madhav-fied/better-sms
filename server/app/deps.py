@@ -1,32 +1,82 @@
-from typing import Annotated
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+import hashlib
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Optional
 
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.database import get_db
 from app.config import settings
+from app.models.auth import Session as SessionModel
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
 
-def get_current_user(
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     token = credentials.credentials
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+
+    # Superadmin shortcut — static API key
+    if token == settings.superadmin_api_key:
+        return {"user_id": "superadmin", "school_id": None, "role": "superadmin", "entity_id": None}
+
+    token_hash = _hash_token(token)
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        select(SessionModel).where(
+            SessionModel.token_hash == token_hash,
+            SessionModel.expires_at > now,
+        )
     )
-    try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id: str = payload.get("sub")
-        school_id: str = payload.get("school_id")
-        role: str = payload.get("role")
-        if user_id is None or school_id is None or role is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    return {"user_id": user_id, "school_id": school_id, "role": role}
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session")
+
+    # Sliding renewal: reset TTL if within last 7 days
+    slide_threshold = session.expires_at - timedelta(days=7)
+    if now >= slide_threshold:
+        new_expires = now + timedelta(days=settings.session_ttl_days)
+        session.expires_at = new_expires
+    session.last_seen_at = now
+    await db.flush()
+
+    return {
+        "user_id": session.school_user_id,
+        "school_id": session.school_id,
+        "role": session.role,
+        "entity_id": None,
+    }
 
 
 CurrentUser = Annotated[dict, Depends(get_current_user)]
+
+
+# ── Role guards ───────────────────────────────────────────────────────────────
+
+def require_superadmin(user: CurrentUser):
+    if user["role"] not in ("superadmin",):
+        raise HTTPException(status_code=403, detail="Superadmin role required")
+
+
+def require_admin(user: CurrentUser):
+    if user["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin role required")
+
+
+def require_teacher(user: CurrentUser):
+    if user["role"] not in ("superadmin", "admin", "teacher"):
+        raise HTTPException(status_code=403, detail="Teacher or admin role required")
+
+
+def require_staff(user: CurrentUser):
+    if user["role"] not in ("superadmin", "admin", "teacher", "staff"):
+        raise HTTPException(status_code=403, detail="Staff role required")

@@ -1,6 +1,6 @@
 # RFC-007: Student Attendance
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Marking, viewing, updating student attendance per period/session  
 **Actors:** Class Teacher (marks), Admin (views/overrides), Parent (views own child)
 
@@ -316,8 +316,8 @@ Response: 200 {
 
 ## 6. Open Questions
 
-- [ ] Attendance mode (period vs session) — is it per school, or can different classes use different modes?
-- [ ] Max periods per day — school config or fixed?
-- [ ] Can a teacher mark attendance for a past date, or is there a cutoff (e.g. same day only)?
-- [ ] Push notification to parent when child marked absent — Phase 1 or 2?
-- [ ] Late threshold — is "late" set by arrival time or manually selected by teacher?
+- [x] Attendance mode (period vs session) — is it per school or per class? Decision: per school (`school.attendance_mode`); default "period".
+- [x] Max periods per day — school config or fixed? Decision: school config via period_configs table.
+- [x] Can a teacher mark attendance for a past date, or is there a cutoff? Decision: allowed (no cutoff in Phase 1).
+- [x] Push notification to parent when child marked absent — Phase 1 or 2? Decision: Phase 2.
+- [x] Late threshold — set by arrival time or manually selected by teacher? Decision: manually selected by teacher.

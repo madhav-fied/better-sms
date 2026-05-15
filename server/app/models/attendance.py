@@ -49,6 +49,8 @@ class StudentAttendanceRecord(Base):
     updated_by: Mapped[Optional[str]] = mapped_column(sa.String(36), nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime(timezone=True), nullable=True)
     previous_status: Mapped[Optional[str]] = mapped_column(sa.String(20), nullable=True)
+    source: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="manual", server_default="manual")
+    leave_id: Mapped[Optional[str]] = mapped_column(sa.String(36), nullable=True)
 
 
 class StaffAttendanceRecord(Base):

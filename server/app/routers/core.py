@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_superadmin, require_admin
 from app.models.core import School, AcademicYear, ClassSection
 from app.schemas.core import (
     SchoolCreate, SchoolUpdate, SchoolOut,
@@ -15,10 +16,19 @@ from app.schemas.common import Response, ok, err
 router = APIRouter()
 
 
+class StatusBody(BaseModel):
+    is_active: bool
+
+
 # ── Schools ──────────────────────────────────────────────────────────────────
 
 @router.post("/schools", response_model=Response)
-async def create_school(body: SchoolCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_school(
+    body: SchoolCreate,
+    user: CurrentUser,
+    _: None = Depends(require_superadmin),
+    db: AsyncSession = Depends(get_db),
+):
     school = School(**body.model_dump())
     db.add(school)
     await db.flush()
@@ -51,7 +61,13 @@ async def get_school(school_id: str, db: AsyncSession = Depends(get_db), user: d
 
 
 @router.put("/schools/{school_id}", response_model=Response)
-async def update_school(school_id: str, body: SchoolUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_school(
+    school_id: str,
+    body: SchoolUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_superadmin),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(School).where(School.id == school_id))
     school = result.scalar_one_or_none()
     if not school:
@@ -64,12 +80,18 @@ async def update_school(school_id: str, body: SchoolUpdate, db: AsyncSession = D
 
 
 @router.patch("/schools/{school_id}/status", response_model=Response)
-async def toggle_school_status(school_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def set_school_status(
+    school_id: str,
+    body: StatusBody,
+    user: CurrentUser,
+    _: None = Depends(require_superadmin),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(School).where(School.id == school_id))
     school = result.scalar_one_or_none()
     if not school:
         raise HTTPException(status_code=404, detail="School not found")
-    school.is_active = not school.is_active
+    school.is_active = body.is_active
     await db.flush()
     await db.refresh(school)
     return ok(SchoolOut.model_validate(school).model_dump())
@@ -78,7 +100,12 @@ async def toggle_school_status(school_id: str, db: AsyncSession = Depends(get_db
 # ── Academic Years ────────────────────────────────────────────────────────────
 
 @router.post("/academic-years", response_model=Response)
-async def create_academic_year(body: AcademicYearCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_academic_year(
+    body: AcademicYearCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     ay = AcademicYear(**body.model_dump())
     db.add(ay)
     await db.flush()
@@ -116,7 +143,13 @@ async def get_academic_year(ay_id: str, db: AsyncSession = Depends(get_db), user
 
 
 @router.put("/academic-years/{ay_id}", response_model=Response)
-async def update_academic_year(ay_id: str, body: AcademicYearUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_academic_year(
+    ay_id: str,
+    body: AcademicYearUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(AcademicYear).where(AcademicYear.id == ay_id))
     ay = result.scalar_one_or_none()
     if not ay:
@@ -129,12 +162,16 @@ async def update_academic_year(ay_id: str, body: AcademicYearUpdate, db: AsyncSe
 
 
 @router.post("/academic-years/{ay_id}/activate", response_model=Response)
-async def activate_academic_year(ay_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def activate_academic_year(
+    ay_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(AcademicYear).where(AcademicYear.id == ay_id))
     ay = result.scalar_one_or_none()
     if not ay:
         raise HTTPException(status_code=404, detail="Academic year not found")
-    # Deactivate all others for same school
     all_result = await db.execute(select(AcademicYear).where(AcademicYear.school_id == ay.school_id))
     for other in all_result.scalars().all():
         other.is_active = False
@@ -145,7 +182,12 @@ async def activate_academic_year(ay_id: str, db: AsyncSession = Depends(get_db),
 
 
 @router.delete("/academic-years/{ay_id}", response_model=Response)
-async def delete_academic_year(ay_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_academic_year(
+    ay_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(AcademicYear).where(AcademicYear.id == ay_id))
     ay = result.scalar_one_or_none()
     if not ay:
@@ -157,7 +199,12 @@ async def delete_academic_year(ay_id: str, db: AsyncSession = Depends(get_db), u
 # ── Class Sections ────────────────────────────────────────────────────────────
 
 @router.post("/class-sections", response_model=Response)
-async def create_class_section(body: ClassSectionCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_class_section(
+    body: ClassSectionCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     cs = ClassSection(**body.model_dump())
     db.add(cs)
     await db.flush()
@@ -198,7 +245,13 @@ async def get_class_section(cs_id: str, db: AsyncSession = Depends(get_db), user
 
 
 @router.put("/class-sections/{cs_id}", response_model=Response)
-async def update_class_section(cs_id: str, body: ClassSectionUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_class_section(
+    cs_id: str,
+    body: ClassSectionUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(ClassSection).where(ClassSection.id == cs_id))
     cs = result.scalar_one_or_none()
     if not cs:
@@ -211,7 +264,12 @@ async def update_class_section(cs_id: str, body: ClassSectionUpdate, db: AsyncSe
 
 
 @router.delete("/class-sections/{cs_id}", response_model=Response)
-async def delete_class_section(cs_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_class_section(
+    cs_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(ClassSection).where(ClassSection.id == cs_id))
     cs = result.scalar_one_or_none()
     if not cs:

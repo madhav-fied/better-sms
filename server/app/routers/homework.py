@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_teacher
 from app.models.homework import Homework, HomeworkAttachment
 from app.schemas.homework import HomeworkCreate, HomeworkUpdate, HomeworkOut, HomeworkAttachmentOut
 from app.schemas.common import Response, ok
@@ -30,8 +30,14 @@ def _hw_out(hw, attachments: list) -> dict:
         "attachments": attachments,
     }
 
+
 @router.post("/homework", response_model=Response)
-async def create_homework(body: HomeworkCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_homework(
+    body: HomeworkCreate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     hw = Homework(school_id=user["school_id"], assigned_by=user["user_id"], **body.model_dump())
     db.add(hw)
     await db.flush()
@@ -81,7 +87,13 @@ async def get_homework(hw_id: str, db: AsyncSession = Depends(get_db), user: dic
 
 
 @router.put("/homework/{hw_id}", response_model=Response)
-async def update_homework(hw_id: str, body: HomeworkUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_homework(
+    hw_id: str,
+    body: HomeworkUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Homework).where(Homework.id == hw_id, Homework.school_id == user["school_id"]))
     hw = res.scalar_one_or_none()
     if not hw:
@@ -96,7 +108,12 @@ async def update_homework(hw_id: str, body: HomeworkUpdate, db: AsyncSession = D
 
 
 @router.patch("/homework/{hw_id}/cancel", response_model=Response)
-async def cancel_homework(hw_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def cancel_homework(
+    hw_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Homework).where(Homework.id == hw_id, Homework.school_id == user["school_id"]))
     hw = res.scalar_one_or_none()
     if not hw:
@@ -109,13 +126,16 @@ async def cancel_homework(hw_id: str, db: AsyncSession = Depends(get_db), user: 
 
 
 @router.delete("/homework/{hw_id}", response_model=Response)
-async def delete_homework(hw_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_homework(
+    hw_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Homework).where(Homework.id == hw_id, Homework.school_id == user["school_id"]))
     hw = res.scalar_one_or_none()
     if not hw:
         raise HTTPException(status_code=404, detail="Homework not found")
-    await db.execute(select(HomeworkAttachment).where(HomeworkAttachment.homework_id == hw.id))
-    # Delete attachments first
     atts = (await db.execute(select(HomeworkAttachment).where(HomeworkAttachment.homework_id == hw.id))).scalars().all()
     for a in atts:
         await db.delete(a)

@@ -1,6 +1,6 @@
 # RFC-016: Timetable Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** School-level period structure configuration + per-class weekly schedule  
 **Base paths:** `/timetable/period-config`, `/timetable`  
 **Actors:** Admin (all), Class Teacher (own class), Teacher (read, assigned classes), Parent / Student (read-only)
@@ -422,9 +422,9 @@ DB unique index: `(school_id, class_section_id, academic_year_id)`
 
 ## 10. Open Questions
 
-- [ ] Subject field — free text or subject master? Same open question in RFC-011, RFC-014. Inconsistent names make cross-module reports unreliable.
-- [ ] 6-day week (Mon–Sat) vs 5-day — is this a school-level config flag or inferred from which days have slots?
-- [ ] Updating period config that would leave existing slots with dangling period_numbers — block the save, or warn and allow?
-- [ ] Copy timetable to a new AY — convenience operation, or manual re-entry?
-- [ ] Substitute teacher — when a teacher is absent, display a substitute in the timetable. Phase 2 likely.
-- [ ] Should teachers (non-class-teacher) be able to view full timetables for their assigned classes? Currently yes (published only) — confirm.
+- [x] Subject field — free text or subject master? Decision: subject master list; validated on write.
+- [x] 6-day week (Mon–Sat) vs 5-day — school-level config flag or inferred? Decision: `school.uses_saturday` flag (default false).
+- [x] Updating period config that would leave dangling period_numbers — block or warn? Decision: warn in response, allow.
+- [x] Copy timetable to a new AY — convenience or manual re-entry? Decision: Phase 2.
+- [x] Substitute teacher — Phase 2. Confirmed.
+- [x] Should non-class-teacher teachers be able to view timetables? Decision: confirmed yes (published only).

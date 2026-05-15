@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.exam import Exam, ExamScheduleEntry
 from app.schemas.exam import ExamCreate, ExamUpdate, ExamOut, ExamScheduleEntryIn, ExamScheduleEntryOut
 from app.schemas.common import Response, ok
@@ -14,7 +14,12 @@ router = APIRouter()
 
 
 @router.post("/exams", response_model=Response)
-async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_exam(
+    body: ExamCreate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     exam = Exam(school_id=user["school_id"], created_by=user["user_id"], **body.model_dump())
     db.add(exam)
     await db.flush()
@@ -53,7 +58,13 @@ async def get_exam(exam_id: str, db: AsyncSession = Depends(get_db), user: dict 
 
 
 @router.put("/exams/{exam_id}", response_model=Response)
-async def update_exam(exam_id: str, body: ExamUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_exam(
+    exam_id: str,
+    body: ExamUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Exam).where(Exam.id == exam_id, Exam.school_id == user["school_id"]))
     exam = res.scalar_one_or_none()
     if not exam:
@@ -67,7 +78,12 @@ async def update_exam(exam_id: str, body: ExamUpdate, db: AsyncSession = Depends
 
 
 @router.delete("/exams/{exam_id}", response_model=Response)
-async def delete_exam(exam_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_exam(
+    exam_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Exam).where(Exam.id == exam_id, Exam.school_id == user["school_id"]))
     exam = res.scalar_one_or_none()
     if not exam:
@@ -101,14 +117,14 @@ async def get_exam_schedule(
 async def upsert_exam_schedule(
     exam_id: str,
     entries: List[ExamScheduleEntryIn],
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     res = await db.execute(select(Exam).where(Exam.id == exam_id, Exam.school_id == user["school_id"]))
     exam = res.scalar_one_or_none()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
-    # Delete existing entries and replace
     existing = (await db.execute(select(ExamScheduleEntry).where(ExamScheduleEntry.exam_id == exam_id))).scalars().all()
     for e in existing:
         await db.delete(e)

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.student import Student
 from app.schemas.student import StudentUpdate, StudentOut
 from app.schemas.common import Response, ok
@@ -45,7 +45,13 @@ async def get_student(student_id: str, db: AsyncSession = Depends(get_db), user:
 
 
 @router.put("/students/{student_id}", response_model=Response)
-async def update_student(student_id: str, body: StudentUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_student(
+    student_id: str,
+    body: StudentUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Student).where(Student.id == student_id, Student.school_id == user["school_id"]))
     student = res.scalar_one_or_none()
     if not student:
@@ -58,7 +64,12 @@ async def update_student(student_id: str, body: StudentUpdate, db: AsyncSession 
 
 
 @router.patch("/students/{student_id}/status", response_model=Response)
-async def toggle_student_status(student_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def toggle_student_status(
+    student_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Student).where(Student.id == student_id, Student.school_id == user["school_id"]))
     student = res.scalar_one_or_none()
     if not student:

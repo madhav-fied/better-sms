@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
+    auth,
+    users,
+    subject,
     core,
     admission,
     student,
@@ -33,6 +36,9 @@ app.add_middleware(
 
 PREFIX = "/api/v1"
 
+app.include_router(auth.router, prefix=PREFIX, tags=["Auth"])
+app.include_router(users.router, prefix=PREFIX, tags=["Users"])
+app.include_router(subject.router, prefix=PREFIX, tags=["Subjects"])
 app.include_router(core.router, prefix=PREFIX, tags=["Core"])
 app.include_router(admission.router, prefix=PREFIX, tags=["Admission"])
 app.include_router(student.router, prefix=PREFIX, tags=["Student"])

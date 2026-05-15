@@ -1,6 +1,6 @@
 # RFC-010: Attendance History & Reports
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Filterable attendance history table for students; aggregate views for admin  
 **Actors:** Admin, Principal, Class Teacher
 
@@ -292,7 +292,7 @@ Inline edit flow:
 
 ## 6. Open Questions
 
-- [ ] Working days calculation — does it use the HolidayCalendar from Masters module? Needs to be set up before percentage calculations are meaningful.
-- [ ] Low attendance threshold — school-level config or fixed at 75%?
-- [ ] Export row cap — 10,000 rows acceptable? Or should large exports be async (background job + download link)?
-- [ ] Staff attendance history — is a separate history page needed, or does `GET /attendance/staff` with date range cover it?
+- [x] Working days calculation — does it use HolidayCalendar? Decision: raw calendar days (no HolidayCalendar).
+- [x] Low attendance threshold — school-level config or fixed at 75%? Decision: school-level config (default 75%); Phase 2 for configurability.
+- [x] Export row cap — 10,000 rows acceptable? Decision: 10,000 rows; async background export is Phase 2.
+- [x] Staff attendance history — separate page needed? Decision: `GET /attendance/staff` with date range covers it; no separate page.

@@ -1,6 +1,6 @@
 # RFC-006: Dashboard
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** All dashboard widgets — attendance, strength, birthdays, financials, timetable  
 **Actors:** Admin, Principal, Class Teacher
 
@@ -360,8 +360,8 @@ Role scoping is enforced server-side — the client does not pass a role filter.
 
 ## 6. Open Questions
 
-- [ ] **SMS Balance** — is this fetched from a third-party gateway API (live) or an internal ledger? If third-party, what's the fallback when the gateway is unreachable?
-- [ ] Should financial chart endpoints return empty datasets or 404 before Phase 2 ships?
-- [ ] Timetable widget `day` param — does Saturday/Sunday apply (some schools have 6-day weeks)?
-- [ ] Birthday widget — should it include upcoming birthdays (e.g. next 7 days)? How many days ahead?
-- [ ] Dashboard for Principal role — same as Admin or different scoping?
+- [x] **SMS Balance** — internal ledger or third-party gateway API? Decision: internal ledger (Phase 2: live Fast2SMS query).
+- [x] Should financial chart endpoints return empty datasets or 404 before Phase 2 ships? Decision: return empty datasets.
+- [x] Timetable widget `day` param — does Saturday apply? Decision: school-level `uses_saturday` flag (default false).
+- [x] Birthday widget — upcoming birthdays? How many days ahead? Decision: 7 days ahead by default.
+- [x] Dashboard for Principal role — same as Admin or different scoping? Decision: same scope as Admin in Phase 1.

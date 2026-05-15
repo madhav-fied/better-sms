@@ -1,6 +1,6 @@
 # RFC-017: Exam Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Exam creation with type and ordering, per-class subject schedules with TBD date support, publish + parent notifications  
 **Base path:** `/exams`  
 **Actors:** Admin (all), Teacher (own class schedule entries), Parent / Student (read-only)
@@ -437,9 +437,9 @@ Errors:
 
 ## 7. Open Questions
 
-- [ ] Should changing `applicable_class_section_ids` on a scheduled exam notify newly added / removed classes?
-- [ ] Date-confirmed notification — when a TBD date is set, notify parents? Phase 2 likely.
-- [ ] Passing marks — should there be a school-level default configurable in settings, or is 35% implicit?
-- [ ] Can two exams have the same `display_order` if they're different types (e.g., monthly tests 1, 2, 3)? Consider a composite: `(exam_type, display_order)` or just enforce uniqueness per AY.
-- [ ] Should admin be able to revert a `completed` exam back to `scheduled`? Useful if results entry is premature.
-- [ ] Venue / room per schedule entry — in scope or Phase 2?
+- [x] Should changing `applicable_class_section_ids` on a scheduled exam notify newly added / removed classes? Decision: Phase 2.
+- [x] Date-confirmed notification — when a TBD date is set, notify parents? Decision: Phase 2.
+- [x] Passing marks — school-level default or 35% implicit? Decision: `ExamScheduleEntry.passing_marks` defaults to 35 (already in server).
+- [x] Can two exams have the same `display_order` if different types? Decision: blocked; unique per AY.
+- [x] Should admin be able to revert a `completed` exam back to `scheduled`? Decision: admin can revert completed → scheduled.
+- [x] Venue / room per schedule entry — in scope or Phase 2? Decision: Phase 2.

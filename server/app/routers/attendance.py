@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.attendance import StudentAttendanceRecord, StaffAttendanceRecord
 from app.schemas.attendance import (
     StudentAttendanceMarkIn, StudentAttendanceUpdate, StudentAttendanceOut,
@@ -20,14 +20,14 @@ router = APIRouter()
 @router.post("/attendance/students/mark", response_model=Response)
 async def mark_student_attendance(
     body: StudentAttendanceMarkIn,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     school_id = user["school_id"]
     now = datetime.utcnow()
     created = []
     for item in body.records:
-        # Check for existing record
         existing_res = await db.execute(
             select(StudentAttendanceRecord).where(
                 StudentAttendanceRecord.school_id == school_id,
@@ -98,8 +98,9 @@ async def list_student_attendance(
 async def update_student_attendance(
     record_id: str,
     body: StudentAttendanceUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     res = await db.execute(select(StudentAttendanceRecord).where(
         StudentAttendanceRecord.id == record_id,
@@ -161,8 +162,9 @@ async def student_attendance_summary(
 @router.post("/attendance/staff/mark", response_model=Response)
 async def mark_staff_attendance(
     body: StaffAttendanceMarkIn,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     school_id = user["school_id"]
     now = datetime.utcnow()
@@ -233,8 +235,9 @@ async def list_staff_attendance(
 async def update_staff_attendance(
     record_id: str,
     body: StaffAttendanceUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     res = await db.execute(select(StaffAttendanceRecord).where(
         StaffAttendanceRecord.id == record_id,

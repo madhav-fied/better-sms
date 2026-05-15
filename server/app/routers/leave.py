@@ -1,19 +1,97 @@
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.leave import Leave
+from app.models.attendance import StudentAttendanceRecord
+from app.models.student import Student
 from app.schemas.leave import LeaveCreate, LeaveReviewIn, LeaveOut
 from app.schemas.common import Response, ok
 
 router = APIRouter()
 
 
+async def _mark_leave_attendance(leave: Leave, user_id: str, db: AsyncSession) -> None:
+    """Create/update student attendance records for approved student leave period."""
+    if leave.entity_type != "student":
+        return
+
+    now = datetime.utcnow()
+
+    # Look up the student to get class_section_id and academic_year_id
+    student_res = await db.execute(
+        select(Student).where(Student.id == leave.entity_id, Student.school_id == leave.school_id)
+    )
+    student = student_res.scalar_one_or_none()
+    if not student:
+        # Cannot create attendance records without student context
+        return
+
+    # Iterate dates in the leave range
+    current = leave.from_date
+    while current <= leave.to_date:
+        existing_res = await db.execute(
+            select(StudentAttendanceRecord).where(
+                StudentAttendanceRecord.school_id == leave.school_id,
+                StudentAttendanceRecord.student_id == leave.entity_id,
+                StudentAttendanceRecord.date == current,
+                StudentAttendanceRecord.class_section_id == student.class_section_id,
+            )
+        )
+        existing = existing_res.scalar_one_or_none()
+        if existing:
+            existing.previous_status = existing.status
+            existing.status = "on_leave"
+            existing.updated_by = user_id
+            existing.updated_at = now
+            existing.source = "leave"
+            existing.leave_id = leave.id
+        else:
+            rec = StudentAttendanceRecord(
+                school_id=leave.school_id,
+                academic_year_id=student.academic_year_id,
+                class_section_id=student.class_section_id,
+                student_id=leave.entity_id,
+                date=current,
+                status="on_leave",
+                marked_by=user_id,
+                marked_at=now,
+                source="leave",
+                leave_id=leave.id,
+            )
+            db.add(rec)
+        current += timedelta(days=1)
+
+
+async def _revert_leave_attendance(leave: Leave, db: AsyncSession) -> None:
+    """Revert student attendance records created from this leave back to not_marked."""
+    if leave.entity_type != "student":
+        return
+
+    recs_res = await db.execute(
+        select(StudentAttendanceRecord).where(
+            StudentAttendanceRecord.source == "leave",
+            StudentAttendanceRecord.leave_id == leave.id,
+        )
+    )
+    recs = recs_res.scalars().all()
+    for rec in recs:
+        rec.status = "not_marked"
+        rec.source = "manual"
+        rec.leave_id = None
+        rec.previous_status = "on_leave"
+        rec.updated_at = datetime.utcnow()
+
+
 @router.post("/leaves", response_model=Response)
-async def create_leave(body: LeaveCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_leave(
+    body: LeaveCreate,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
     leave = Leave(school_id=user["school_id"], applied_by=user["user_id"], **body.model_dump())
     db.add(leave)
     await db.flush()
@@ -55,7 +133,13 @@ async def get_leave(leave_id: str, db: AsyncSession = Depends(get_db), user: dic
 
 
 @router.post("/leaves/{leave_id}/approve", response_model=Response)
-async def approve_leave(leave_id: str, body: LeaveReviewIn, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def approve_leave(
+    leave_id: str,
+    body: LeaveReviewIn,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Leave).where(Leave.id == leave_id, Leave.school_id == user["school_id"]))
     leave = res.scalar_one_or_none()
     if not leave:
@@ -65,12 +149,22 @@ async def approve_leave(leave_id: str, body: LeaveReviewIn, db: AsyncSession = D
     leave.reviewed_at = datetime.utcnow()
     leave.review_note = body.review_note
     await db.flush()
+
+    # Auto-create/update attendance records for student leaves
+    await _mark_leave_attendance(leave, user["user_id"], db)
+    await db.flush()
     await db.refresh(leave)
     return ok(LeaveOut.model_validate(leave).model_dump())
 
 
 @router.post("/leaves/{leave_id}/reject", response_model=Response)
-async def reject_leave(leave_id: str, body: LeaveReviewIn, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def reject_leave(
+    leave_id: str,
+    body: LeaveReviewIn,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Leave).where(Leave.id == leave_id, Leave.school_id == user["school_id"]))
     leave = res.scalar_one_or_none()
     if not leave:
@@ -85,12 +179,25 @@ async def reject_leave(leave_id: str, body: LeaveReviewIn, db: AsyncSession = De
 
 
 @router.patch("/leaves/{leave_id}/cancel", response_model=Response)
-async def cancel_leave(leave_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def cancel_leave(
+    leave_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Leave).where(Leave.id == leave_id, Leave.school_id == user["school_id"]))
     leave = res.scalar_one_or_none()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave not found")
+
+    was_approved = leave.status == "approved"
     leave.status = "cancelled"
     await db.flush()
+
+    # Revert attendance records if the leave was previously approved
+    if was_approved:
+        await _revert_leave_attendance(leave, db)
+        await db.flush()
+
     await db.refresh(leave)
     return ok(LeaveOut.model_validate(leave).model_dump())

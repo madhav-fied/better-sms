@@ -1,6 +1,6 @@
 # RFC-013: Concern Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Parent-submitted concerns/suggestions, threaded responses, status workflow  
 **Actors:** Parent (submits, replies), Teacher (responds, resolves own), Admin (manages all)  
 **Base path:** `/communications/concerns`
@@ -516,9 +516,9 @@ These are stored as `ConcernMessage` records with `sender_type = "system"`.
 
 ## 9. Open Questions
 
-- [ ] Can admin submit a concern on behalf of a parent? (e.g. a verbal complaint brought in-person) Useful for completeness of record.
-- [ ] Should teachers see concerns directed to "admin" that involve their class? Currently no — admin inbox only. Confirm.
-- [ ] Notification to teacher when a new concern is directed at them — Phase 1 or 2?
-- [ ] Is one reopen enough, or should it be configurable (e.g. max 2 reopens)?
-- [ ] Should complaints (category = complaint) have a different escalation path or SLA timer vs general concerns?
-- [ ] File attachments on messages — parent may want to attach a photo (e.g. of an injury). In scope or Phase 2?
+- [x] Can admin submit a concern on behalf of a parent? Decision: allowed; `submitted_by` records admin's user_id.
+- [x] Should teachers see concerns directed to "admin" that involve their class? Decision: no; admin inbox is admin-only.
+- [x] Notification to teacher when a new concern is directed at them — Phase 1 or 2? Decision: Phase 2.
+- [x] Is one reopen enough, or configurable? Decision: 1; Phase 2 for configurability.
+- [x] Should complaints have a different escalation path or SLA timer vs general concerns? Decision: Phase 2.
+- [x] File attachments on messages — in scope or Phase 2? Decision: Phase 2.

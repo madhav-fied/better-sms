@@ -1,6 +1,6 @@
 # RFC-015: Newsletter
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** School-wide periodic newsletter; teacher/admin create and edit; all parents/students read  
 **Base path:** `/communications/newsletters`  
 **Actors:** Admin / Teacher (create, edit), Parent / Student (read-only)
@@ -357,7 +357,7 @@ Side effects: removes S3 object + DB record
 
 ## 9. Open Questions
 
-- [ ] Should teachers be able to create newsletters at all, or is this admin-only? The user confirmed "teachers and admin can create and edit" — but in practice newsletters are usually a principal/admin communication. Confirm with the school.
-- [ ] Issue label format — free text is flexible but can be inconsistent. Consider a structured `volume: int, issue: int` pair instead if the school publishes on a fixed schedule.
-- [ ] Should there be a newsletter archive page on the parent app showing all past newsletters (including archived from previous AYs)? Currently archived ones are hidden.
-- [ ] Notification on publish — SMS or push to all parents when a new newsletter is published?
+- [x] Should teachers be able to create newsletters? Decision: allowed (confirmed).
+- [x] Issue label format — free text or structured? Decision: free text.
+- [x] Newsletter archive page on parent app? Decision: archived newsletters hidden; all published shown.
+- [x] Notification on publish — SMS or push to all parents? Decision: Phase 2.

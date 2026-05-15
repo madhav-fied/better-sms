@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.document import Document
 from app.schemas.document import DocumentCreate, DocumentOut
 from app.schemas.common import Response, ok
@@ -39,8 +39,9 @@ async def _upload_doc(entity_type: str, entity_id: str, body: DocumentCreate, sc
 async def upload_student_document(
     student_id: str,
     body: DocumentCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     doc = await _upload_doc("student", student_id, body, user["school_id"], db)
     return ok(DocumentOut.model_validate(doc).model_dump())
@@ -66,8 +67,9 @@ async def list_student_documents(
 async def upload_staff_document(
     staff_id: str,
     body: DocumentCreate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     doc = await _upload_doc("staff", staff_id, body, user["school_id"], db)
     return ok(DocumentOut.model_validate(doc).model_dump())
@@ -90,7 +92,12 @@ async def list_staff_documents(
 
 
 @router.delete("/documents/{doc_id}", response_model=Response)
-async def delete_document(doc_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_document(
+    doc_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Document).where(Document.id == doc_id, Document.school_id == user["school_id"]))
     doc = res.scalar_one_or_none()
     if not doc:

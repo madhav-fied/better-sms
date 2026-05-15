@@ -1,6 +1,6 @@
 # RFC-008: Staff Attendance
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Daily staff attendance marking, filtering, admin override  
 **Actors:** HR / Admin (marks), Superadmin (cross-school view)
 
@@ -243,7 +243,7 @@ Response: 200 {
 
 ## 5. Open Questions
 
-- [ ] Biometric/device integration — does attendance auto-import from a device? If yes, which fields does the device provide (check-in time only)?
-- [ ] Half-day — does it count as 0.5 or 1 in the percentage calculation?
-- [ ] Who can mark staff attendance — only Admin/HR, or can a department head mark for their team?
-- [ ] Is there a cutoff time after which attendance cannot be marked for the day?
+- [x] Biometric/device integration — auto-import? Decision: Phase 2 (manual only in Phase 1).
+- [x] Half-day — does it count as 0.5 or 1? Decision: counts as 0.5 in percentage.
+- [x] Who can mark staff attendance? Decision: Admin/HR only in Phase 1.
+- [x] Is there a cutoff time after which attendance cannot be marked? Decision: no cutoff in Phase 1.

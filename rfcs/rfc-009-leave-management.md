@@ -1,6 +1,6 @@
 # RFC-009: Leave Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Leave application for students and staff, admin approval workflow  
 **Actors:** Staff (self-apply), Parent (applies for student), Admin/HR (reviews)
 
@@ -342,8 +342,8 @@ The `source` field on attendance records distinguishes auto-created leave entrie
 
 ## 6. Open Questions
 
-- [ ] Leave balance quota per staff — Phase 1 or later?
-- [ ] Weekend/holiday exclusion in day count — does the system know working days? Requires `HolidayCalendar` (RFC Masters) to be set up first.
-- [ ] Can a parent cancel a student leave after approval? Or only admin?
-- [ ] Overlap policy — block overlapping applications, or allow with warning?
-- [ ] Carry-forward of unused leave days — out of scope for Phase 1?
+- [x] Leave balance quota per staff — Phase 1 or later? Decision: Phase 2.
+- [x] Weekend/holiday exclusion in day count — does the system know working days? Decision: raw calendar days (no HolidayCalendar); documented as limitation.
+- [x] Can a parent cancel a student leave after approval? Decision: only admin can cancel approved leaves.
+- [x] Overlap policy — block overlapping applications, or allow with warning? Decision: block overlapping pending/approved leaves.
+- [x] Carry-forward of unused leave days — out of scope for Phase 1? Decision: Phase 2.

@@ -4,13 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.communications import (
     Notice, NoticeAttachment,
     Concern, ConcernMessage,
     Syllabus, SyllabusAttachment,
     Newsletter, NewsletterAttachment,
 )
+from app.models.core import ClassSection
+from app.models.staff import TeacherSubject
 from app.schemas.communications import (
     NoticeCreate, NoticeUpdate, NoticeOut, NoticeAttachmentOut,
     ConcernCreate, ConcernMessageCreate, ConcernOut, ConcernMessageOut,
@@ -18,8 +20,20 @@ from app.schemas.communications import (
     NewsletterCreate, NewsletterUpdate, NewsletterOut, NewsletterAttachmentOut,
 )
 from app.schemas.common import Response, ok
+from typing import Optional
+from pydantic import BaseModel
 
 router = APIRouter()
+
+
+class ConcernCreateExtended(BaseModel):
+    student_id: str
+    category: str
+    subject: str
+    directed_to: str
+    directed_to_staff_id: Optional[str] = None
+    initial_message: str
+    on_behalf_note: Optional[str] = None
 
 
 def _notice_out(n, attachments: list) -> dict:
@@ -30,6 +44,7 @@ def _notice_out(n, attachments: list) -> dict:
         "sent_by": n.sent_by, "status": n.status, "published_at": n.published_at,
         "created_at": n.created_at, "updated_at": n.updated_at, "attachments": attachments,
     }
+
 
 def _concern_out(c, messages: list) -> dict:
     return {
@@ -42,6 +57,7 @@ def _concern_out(c, messages: list) -> dict:
         "created_at": c.created_at, "messages": messages,
     }
 
+
 def _syllabus_out(s, attachments: list) -> dict:
     return {
         "id": s.id, "school_id": s.school_id, "academic_year_id": s.academic_year_id,
@@ -51,6 +67,7 @@ def _syllabus_out(s, attachments: list) -> dict:
         "created_at": s.created_at, "updated_at": s.updated_at, "attachments": attachments,
     }
 
+
 def _newsletter_out(nl, attachments: list) -> dict:
     return {
         "id": nl.id, "school_id": nl.school_id, "title": nl.title,
@@ -59,11 +76,57 @@ def _newsletter_out(nl, attachments: list) -> dict:
         "created_at": nl.created_at, "updated_at": nl.updated_at, "attachments": attachments,
     }
 
+
 # ── Notices ───────────────────────────────────────────────────────────────────
 
 @router.post("/communications/notices", response_model=Response)
-async def create_notice(body: NoticeCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    notice = Notice(school_id=user["school_id"], sent_by=user["user_id"], **body.model_dump())
+async def create_notice(
+    body: NoticeCreate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    school_id = user["school_id"]
+    role = user["role"]
+
+    # Class-teacher access: if targeting specific class_sections, check if caller is class teacher
+    # for any of the targets. Teachers with TeacherSubject mapping are also allowed.
+    # Admins and superadmin can always create notices.
+    if role not in ("superadmin", "admin") and body.target_type == "class_sections":
+        entity_id = user.get("entity_id")
+        allowed = False
+
+        if entity_id and body.target_class_section_ids:
+            # Check TeacherSubject mapping
+            ts_res = await db.execute(
+                select(TeacherSubject).where(
+                    TeacherSubject.school_id == school_id,
+                    TeacherSubject.staff_id == entity_id,
+                    TeacherSubject.class_section_id.in_(body.target_class_section_ids),
+                )
+            )
+            if ts_res.scalars().first():
+                allowed = True
+
+            if not allowed:
+                # Check class_teacher_id on any of the targeted sections
+                ct_res = await db.execute(
+                    select(ClassSection).where(
+                        ClassSection.school_id == school_id,
+                        ClassSection.id.in_(body.target_class_section_ids),
+                        ClassSection.class_teacher_id == entity_id,
+                    )
+                )
+                if ct_res.scalars().first():
+                    allowed = True
+
+        if not allowed:
+            raise HTTPException(
+                status_code=403,
+                detail="You are not authorized to send notices to these class sections"
+            )
+
+    notice = Notice(school_id=school_id, sent_by=user["user_id"], **body.model_dump())
     db.add(notice)
     await db.flush()
     await db.refresh(notice)
@@ -103,7 +166,13 @@ async def get_notice(notice_id: str, db: AsyncSession = Depends(get_db), user: d
 
 
 @router.put("/communications/notices/{notice_id}", response_model=Response)
-async def update_notice(notice_id: str, body: NoticeUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_notice(
+    notice_id: str,
+    body: NoticeUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Notice).where(Notice.id == notice_id, Notice.school_id == user["school_id"]))
     notice = res.scalar_one_or_none()
     if not notice:
@@ -117,7 +186,12 @@ async def update_notice(notice_id: str, body: NoticeUpdate, db: AsyncSession = D
 
 
 @router.post("/communications/notices/{notice_id}/publish", response_model=Response)
-async def publish_notice(notice_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def publish_notice(
+    notice_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Notice).where(Notice.id == notice_id, Notice.school_id == user["school_id"]))
     notice = res.scalar_one_or_none()
     if not notice:
@@ -130,7 +204,12 @@ async def publish_notice(notice_id: str, db: AsyncSession = Depends(get_db), use
 
 
 @router.patch("/communications/notices/{notice_id}/archive", response_model=Response)
-async def archive_notice(notice_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def archive_notice(
+    notice_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Notice).where(Notice.id == notice_id, Notice.school_id == user["school_id"]))
     notice = res.scalar_one_or_none()
     if not notice:
@@ -143,7 +222,12 @@ async def archive_notice(notice_id: str, db: AsyncSession = Depends(get_db), use
 
 
 @router.delete("/communications/notices/{notice_id}", response_model=Response)
-async def delete_notice(notice_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_notice(
+    notice_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Notice).where(Notice.id == notice_id, Notice.school_id == user["school_id"]))
     notice = res.scalar_one_or_none()
     if not notice:
@@ -158,9 +242,25 @@ async def delete_notice(notice_id: str, db: AsyncSession = Depends(get_db), user
 # ── Concerns ──────────────────────────────────────────────────────────────────
 
 @router.post("/communications/concerns", response_model=Response)
-async def create_concern(body: ConcernCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_concern(
+    body: ConcernCreateExtended,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    role = user["role"]
+    # Allow parent or admin to submit concerns
+    if role not in ("superadmin", "admin", "parent"):
+        raise HTTPException(status_code=403, detail="Only parents or admins can submit concerns")
+
     school_id = user["school_id"]
     now = datetime.utcnow()
+
+    # Determine sender_type based on role
+    if role in ("superadmin", "admin"):
+        sender_type = "admin"
+    else:
+        sender_type = "parent"
+
     concern = Concern(
         school_id=school_id,
         student_id=body.student_id,
@@ -174,12 +274,18 @@ async def create_concern(body: ConcernCreate, db: AsyncSession = Depends(get_db)
     )
     db.add(concern)
     await db.flush()
+
+    # Build initial message with optional on_behalf_note
+    message_body = body.initial_message
+    if body.on_behalf_note:
+        message_body = f"[On behalf note: {body.on_behalf_note}]\n\n{message_body}"
+
     msg = ConcernMessage(
         concern_id=concern.id,
-        sender_type="parent",
+        sender_type=sender_type,
         sender_id=user["user_id"],
-        sender_name="Parent",
-        body=body.initial_message,
+        sender_name="Admin" if sender_type == "admin" else "Parent",
+        body=message_body,
     )
     db.add(msg)
     await db.flush()
@@ -224,7 +330,12 @@ async def get_concern(concern_id: str, db: AsyncSession = Depends(get_db), user:
 
 
 @router.post("/communications/concerns/{concern_id}/messages", response_model=Response)
-async def add_concern_message(concern_id: str, body: ConcernMessageCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def add_concern_message(
+    concern_id: str,
+    body: ConcernMessageCreate,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Concern).where(Concern.id == concern_id, Concern.school_id == user["school_id"]))
     concern = res.scalar_one_or_none()
     if not concern:
@@ -245,7 +356,12 @@ async def add_concern_message(concern_id: str, body: ConcernMessageCreate, db: A
 
 
 @router.patch("/communications/concerns/{concern_id}/acknowledge", response_model=Response)
-async def acknowledge_concern(concern_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def acknowledge_concern(
+    concern_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Concern).where(Concern.id == concern_id, Concern.school_id == user["school_id"]))
     concern = res.scalar_one_or_none()
     if not concern:
@@ -258,7 +374,12 @@ async def acknowledge_concern(concern_id: str, db: AsyncSession = Depends(get_db
 
 
 @router.patch("/communications/concerns/{concern_id}/resolve", response_model=Response)
-async def resolve_concern(concern_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def resolve_concern(
+    concern_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Concern).where(Concern.id == concern_id, Concern.school_id == user["school_id"]))
     concern = res.scalar_one_or_none()
     if not concern:
@@ -273,7 +394,12 @@ async def resolve_concern(concern_id: str, db: AsyncSession = Depends(get_db), u
 
 
 @router.patch("/communications/concerns/{concern_id}/close", response_model=Response)
-async def close_concern(concern_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def close_concern(
+    concern_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Concern).where(Concern.id == concern_id, Concern.school_id == user["school_id"]))
     concern = res.scalar_one_or_none()
     if not concern:
@@ -290,7 +416,12 @@ async def close_concern(concern_id: str, db: AsyncSession = Depends(get_db), use
 # ── Syllabus ──────────────────────────────────────────────────────────────────
 
 @router.post("/communications/syllabus", response_model=Response)
-async def create_syllabus(body: SyllabusCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_syllabus(
+    body: SyllabusCreate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     syllabus = Syllabus(school_id=user["school_id"], created_by=user["user_id"], **body.model_dump())
     db.add(syllabus)
     await db.flush()
@@ -334,7 +465,13 @@ async def get_syllabus(syllabus_id: str, db: AsyncSession = Depends(get_db), use
 
 
 @router.put("/communications/syllabus/{syllabus_id}", response_model=Response)
-async def update_syllabus(syllabus_id: str, body: SyllabusUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_syllabus(
+    syllabus_id: str,
+    body: SyllabusUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Syllabus).where(Syllabus.id == syllabus_id, Syllabus.school_id == user["school_id"]))
     syllabus = res.scalar_one_or_none()
     if not syllabus:
@@ -349,7 +486,12 @@ async def update_syllabus(syllabus_id: str, body: SyllabusUpdate, db: AsyncSessi
 
 
 @router.post("/communications/syllabus/{syllabus_id}/publish", response_model=Response)
-async def publish_syllabus(syllabus_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def publish_syllabus(
+    syllabus_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Syllabus).where(Syllabus.id == syllabus_id, Syllabus.school_id == user["school_id"]))
     syllabus = res.scalar_one_or_none()
     if not syllabus:
@@ -364,7 +506,12 @@ async def publish_syllabus(syllabus_id: str, db: AsyncSession = Depends(get_db),
 # ── Newsletters ───────────────────────────────────────────────────────────────
 
 @router.post("/communications/newsletters", response_model=Response)
-async def create_newsletter(body: NewsletterCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def create_newsletter(
+    body: NewsletterCreate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     nl = Newsletter(school_id=user["school_id"], created_by=user["user_id"], **body.model_dump())
     db.add(nl)
     await db.flush()
@@ -405,7 +552,13 @@ async def get_newsletter(nl_id: str, db: AsyncSession = Depends(get_db), user: d
 
 
 @router.put("/communications/newsletters/{nl_id}", response_model=Response)
-async def update_newsletter(nl_id: str, body: NewsletterUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def update_newsletter(
+    nl_id: str,
+    body: NewsletterUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Newsletter).where(Newsletter.id == nl_id, Newsletter.school_id == user["school_id"]))
     nl = res.scalar_one_or_none()
     if not nl:
@@ -419,7 +572,12 @@ async def update_newsletter(nl_id: str, body: NewsletterUpdate, db: AsyncSession
 
 
 @router.post("/communications/newsletters/{nl_id}/publish", response_model=Response)
-async def publish_newsletter(nl_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def publish_newsletter(
+    nl_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Newsletter).where(Newsletter.id == nl_id, Newsletter.school_id == user["school_id"]))
     nl = res.scalar_one_or_none()
     if not nl:
@@ -432,7 +590,12 @@ async def publish_newsletter(nl_id: str, db: AsyncSession = Depends(get_db), use
 
 
 @router.delete("/communications/newsletters/{nl_id}", response_model=Response)
-async def delete_newsletter(nl_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_newsletter(
+    nl_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     res = await db.execute(select(Newsletter).where(Newsletter.id == nl_id, Newsletter.school_id == user["school_id"]))
     nl = res.scalar_one_or_none()
     if not nl:

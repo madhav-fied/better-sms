@@ -1,6 +1,6 @@
 # RFC-014: Syllabus
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Per-class-section subject syllabus; teacher/admin create and edit; parent/student read  
 **Base path:** `/communications/syllabus`  
 **Actors:** Teacher (own class+subject), Admin (all), Parent / Student (read-only)
@@ -381,7 +381,7 @@ The uniqueness constraint is: `(school_id, class_section_id, subject, academic_y
 
 ## 9. Open Questions
 
-- [ ] Subject field — free text or from a subject master list? Same question as in RFC-011 (homework). Inconsistent subject names will break the per-subject card view on the parent app.
-- [ ] Should archived syllabi from previous AYs be accessible to parents (as history), or fully hidden?
-- [ ] Topic completion dates — should there be a way to mark a topic as "completed"? Useful for tracking curriculum progress. Phase 2 likely.
-- [ ] Version history — should parents be able to see previous versions of an updated syllabus? Currently only the latest version is stored.
+- [x] Subject field — free text or subject master list? Decision: subject master list; validated against `subjects` table.
+- [x] Should archived syllabi be accessible to parents (as history)? Decision: hidden from parents (no history view).
+- [x] Topic completion dates — should there be a way to mark a topic as "completed"? Decision: Phase 2.
+- [x] Version history — should parents see previous versions? Decision: Phase 2.

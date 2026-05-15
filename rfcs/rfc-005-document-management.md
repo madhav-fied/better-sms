@@ -1,6 +1,6 @@
 # RFC-005: Document Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** File uploads for students, staff, and registrations; S3 storage; pre-signed URL access  
 **Actors:** Admin, Receptionist
 
@@ -252,8 +252,8 @@ Errors:
 
 ## 8. Open Questions
 
-- [ ] Max file size — confirm 5MB with client (some aadhar PDFs can be large)
-- [ ] Pre-signed URL TTL — 1 hour default, or shorter for sensitive docs like aadhar?
-- [ ] Should there be a document count limit per entity (e.g. max 10 docs per student)?
-- [ ] Virus scanning (e.g. ClamAV or S3 event trigger) — required for Phase 1 or later?
-- [ ] Are documents tied to an academic year, or are they permanent across AYs?
+- [x] Max file size — confirm 5MB with client. Decision: 5MB confirmed.
+- [x] Pre-signed URL TTL — 1 hour default, or shorter for sensitive docs? Decision: 1 hour (no per-type variation).
+- [x] Should there be a document count limit per entity? Decision: max 10 per entity.
+- [x] Virus scanning — required for Phase 1 or later? Decision: Phase 2.
+- [x] Are documents tied to an academic year, or permanent across AYs? Decision: permanent across AYs (no academic_year_id).

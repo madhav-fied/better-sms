@@ -1,6 +1,6 @@
 # RFC-011: Homework Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Homework creation by teachers, student view, admin oversight  
 **Actors:** Teacher (creates), Student (views), Parent (views), Admin (manages)
 
@@ -456,9 +456,9 @@ Used by the admin stats strip at the top of the homework list page.
 
 ## 9. Open Questions
 
-- [ ] Should a teacher be allowed to assign homework to a class section they're not mapped to in TeacherSubject? (e.g. a substitute) — strict block or admin-override?
-- [ ] Homework submission by students (upload completed work) — confirm Phase 2.
-- [ ] Acknowledgement tracking — should parents/students mark homework as "seen"? Useful for read receipts.
-- [ ] Push/SMS notification to parents when homework is assigned — Phase 1 or 2?
-- [ ] Can the same homework be assigned to multiple class sections at once (e.g. Grade 5-A and 5-B)? Currently one section per record — would need a bulk create or a homework group model.
-- [ ] Is the subject field free text, or does it come from a subject master list? Free text currently risks inconsistency ("Maths" vs "Math").
+- [x] Should a teacher be allowed to assign homework to a class section they're not mapped to? Decision: admin-override allowed; blocked for non-mapped teachers.
+- [x] Homework submission by students — Phase 2. Confirmed.
+- [x] Acknowledgement tracking — should parents/students mark homework as "seen"? Decision: Phase 2.
+- [x] Push/SMS notification to parents when homework is assigned — Phase 1 or 2? Decision: Phase 2.
+- [x] Can the same homework be assigned to multiple class sections at once? Decision: one section per record; bulk-create is Phase 2.
+- [x] Is the subject field free text or from a subject master list? Decision: subject master list; validated against `subjects` table.

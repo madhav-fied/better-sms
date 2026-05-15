@@ -1,6 +1,6 @@
 # RFC-018: Results & Marksheets
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Teacher enters marks, publishes results per subject; parent views and acknowledges; marksheet PDF generation  
 **Base path:** `/results`  
 **Actors:** Admin (all), Teacher (enter/publish, own class+subject), Parent (view own child + acknowledge), Student (view own)
@@ -464,11 +464,11 @@ Side effects:
 
 ## 9. Open Questions
 
-- [ ] Grade scale — should the system auto-compute grade from marks (A1: 91–100, etc.)? Needs a configurable grade master. Phase 2 — for now, teacher enters grade manually.
-- [ ] Total and percentage on marksheet — exclude absent and exempt subjects from denominator, or count as 0? Confirm with school.
-- [ ] Re-acknowledgement — current design allows it (updates acknowledged_at). Some schools want a single irrevocable acknowledgement. Confirm.
-- [ ] Can a teacher un-publish results (e.g., data entry error)? Currently not supported — teacher must edit individual records. Add `POST /results/unpublish` if needed.
-- [ ] Pass / fail override — should a teacher be able to manually override the system-computed pass/fail status independent of marks?
-- [ ] Co-scholastic / activities marks (sports, art, etc.) — same model or a separate resource?
-- [ ] School branding on marksheet PDF — logo, header, principal signature line. Confirm scope.
-- [ ] Should student be able to generate their own marksheet, or parent-only?
+- [x] Grade scale — auto-compute grade from marks? Decision: Phase 2.
+- [x] Total and percentage — exclude absent and exempt from denominator, or count as 0? Decision: excluded from denominator.
+- [x] Re-acknowledgement — current design allows it. Decision: allowed (updates acknowledged_at).
+- [x] Can a teacher un-publish results? Decision: `POST /results/unpublish` added.
+- [x] Pass / fail override — manual override of system-computed status? Decision: Phase 2.
+- [x] Co-scholastic / activities marks — same model or separate resource? Decision: Phase 2.
+- [x] School branding on marksheet PDF — in scope? Decision: Phase 2; WeasyPrint chosen.
+- [x] Should student be able to generate their own marksheet, or parent-only? Decision: confirmed; students can generate own marksheet.

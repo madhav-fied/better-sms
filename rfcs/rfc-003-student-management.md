@@ -1,6 +1,6 @@
 # RFC-003: Student Management
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** Student CRUD, 360° Profile, Class Migration, Section Transfer  
 **Actors:** Admin, Class Teacher, Receptionist
 
@@ -392,8 +392,8 @@ Response includes: { ..., tc_pdf_url: str }
 
 ## 6. Open Questions
 
-- [ ] Is there a maximum number of students per class section (capacity limit)?
-- [ ] Migration: should old-year student record be marked inactive, or just cloned into new AY?
-- [ ] 360° view: should it always reflect the current AY, or let the user select the AY?
-- [ ] TC PDF template — who owns the template? Can it be customized per school?
-- [ ] History/audit log tab — is this in scope for Phase 1?
+- [x] Is there a maximum number of students per class section (capacity limit)? Decision: not implemented (no capacity field).
+- [x] Migration: should old-year student record be marked inactive, or just cloned into new AY? Decision: old record stays active; new AY creates a new record.
+- [x] 360° view: should it always reflect the current AY, or let the user select the AY? Decision: defaults to active AY; optional AY selector supported.
+- [x] TC PDF template — who owns the template? Can it be customized per school? Decision: WeasyPrint; per-school branding in Phase 2.
+- [x] History/audit log tab — is this in scope for Phase 1? Decision: Phase 2.

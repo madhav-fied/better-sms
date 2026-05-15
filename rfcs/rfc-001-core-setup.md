@@ -1,6 +1,6 @@
 # RFC-001: Core Setup & Multi-Tenancy
 
-**Status:** Draft  
+**Status:** Active  
 **Scope:** School provisioning, Academic Years, Class Sections  
 **Actors:** Superadmin, School Admin
 
@@ -214,6 +214,6 @@ Errors:   409 "Cannot delete: 23 students enrolled in this section"
 
 ## 6. Open Questions
 
-- [ ] Should branch schools share staff/fee config or be fully independent? Currently modeled as fully independent tenants.
-- [ ] Who can create schools — only a hardcoded superadmin role, or a separate provisioning API?
-- [ ] Class name format — free text or from a predefined list (e.g. "Nursery", "Grade 1")?
+- [x] Should branch schools share staff/fee config or be fully independent? Decision: fully independent (current model). No change needed.
+- [x] Who can create schools — only a hardcoded superadmin role, or a separate provisioning API? Decision: superadmin API key only.
+- [x] Class name format — free text or from a predefined list? Decision: free text.
