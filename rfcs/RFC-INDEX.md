@@ -2,7 +2,7 @@
 
 **Base URL:** `https://bp3150.skeducations.com`  
 **Version:** 1.1 Draft  
-**Last Updated:** 2026-05-15 (RFC-019 Auth & Permissions added)
+**Last Updated:** 2026-05-15 (RFC-020–022 Client RFCs added)
 
 ---
 
@@ -29,6 +29,9 @@
 | [RFC-017](rfc-017-exams.md) | Exam Management | Active | Exam creation, per-class subject schedule, TBD dates, publish + notify |
 | [RFC-018](rfc-018-results.md) | Results & Marksheets | Active | Mark entry, subject publish, parent view + acknowledge, marksheet PDF |
 | [RFC-019](rfc-019-auth-permissions.md) | Authentication & Permissions | Active | SMS OTP login, roles, session management, permission matrix |
+| [RFC-020](rfc-020-client-architecture.md) | Client Architecture | Active | Two-client strategy (web + mobile), shared conventions, monorepo layout, deployment |
+| [RFC-021](rfc-021-web-dashboard.md) | Web Admin Dashboard | Active | Next.js 15 admin dashboard — stack, page inventory, key flows (separate from mobile) |
+| [RFC-022](rfc-022-mobile-app.md) | Mobile App — Expo React Native | Active | Android app for actors (teacher/staff/student/parent) — navigation, screens, auth |
 
 ---
 

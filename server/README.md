@@ -78,7 +78,7 @@ Authentication uses OTP-based session tokens — no JWTs.
 cd server
 
 # Start Postgres
-docker-compose up -d db
+docker compose up -d db
 
 # Install dependencies
 pip install -r requirements.txt
