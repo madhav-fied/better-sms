@@ -25,7 +25,7 @@ class OtpRequestBody(BaseModel):
 
 class OtpVerifyBody(BaseModel):
     phone: str
-    school_id: str
+    school_id: Optional[str] = None
     otp: str
 
 
@@ -91,7 +91,7 @@ async def request_otp(body: OtpRequestBody, db: AsyncSession = Depends(get_db)):
 
     await send_otp(body.phone, otp)
 
-    return ok({"message": "OTP sent successfully"})
+    return ok({"message": "OTP sent successfully", "school_id": user.school_id})
 
 
 # ── OTP Verify ────────────────────────────────────────────────────────────────
@@ -160,11 +160,16 @@ async def verify_otp(body: OtpVerifyBody, db: AsyncSession = Depends(get_db)):
     await db.flush()
     await db.refresh(session)
 
+    school_res = await db.execute(select(School).where(School.id == school_user.school_id))
+    school = school_res.scalar_one_or_none()
+
     return ok({
         "token": raw_token,
         "expires_at": expires_at.isoformat(),
         "role": school_user.role,
         "school_id": school_user.school_id,
+        "school_name": school.name if school else None,
+        "school_branch_name": school.branch_name if school else None,
         "user_id": school_user.id,
         "entity_id": school_user.entity_id,
     })
@@ -204,16 +209,21 @@ async def logout(user: CurrentUser, db: AsyncSession = Depends(get_db)):
 @router.get("/auth/me", response_model=Response)
 async def me(user: CurrentUser, db: AsyncSession = Depends(get_db)):
     if user["user_id"] == "superadmin":
-        return ok({"user_id": "superadmin", "school_id": None, "role": "superadmin", "entity_id": None})
+        return ok({"user_id": "superadmin", "school_id": None, "school_name": None, "school_branch_name": None, "role": "superadmin", "entity_id": None})
 
     res = await db.execute(select(SchoolUser).where(SchoolUser.id == user["user_id"]))
     school_user = res.scalar_one_or_none()
     if not school_user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    school_res = await db.execute(select(School).where(School.id == school_user.school_id))
+    school = school_res.scalar_one_or_none()
+
     return ok({
         "user_id": school_user.id,
         "school_id": school_user.school_id,
+        "school_name": school.name if school else None,
+        "school_branch_name": school.branch_name if school else None,
         "role": school_user.role,
         "phone": school_user.phone,
         "entity_id": school_user.entity_id,

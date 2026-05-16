@@ -1,29 +1,27 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional, List, Any
 from pydantic import BaseModel
 
-from app.models.admission import EnquiryPurpose, EnquiryStatus, RegistrationStatus, ParentRelation
+from app.models.admission import EnquiryStatus, RegistrationStatus, ParentRelation
 
 
 class EnquiryCreate(BaseModel):
-    parent_name: str
     student_name: str
-    mobile: str
-    dob: Optional[date] = None
-    class_section_id: Optional[str] = None
-    purpose: EnquiryPurpose = EnquiryPurpose.new_admission
-    date: date
+    parent_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    class_seeking: Optional[str] = None
+    source: Optional[str] = None
     notes: Optional[str] = None
 
 
 class EnquiryUpdate(BaseModel):
-    parent_name: Optional[str] = None
     student_name: Optional[str] = None
-    mobile: Optional[str] = None
-    dob: Optional[date] = None
-    class_section_id: Optional[str] = None
-    purpose: Optional[EnquiryPurpose] = None
-    date: Optional[date] = None
+    parent_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    class_seeking: Optional[str] = None
+    source: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[EnquiryStatus] = None
 
@@ -32,13 +30,12 @@ class EnquiryOut(BaseModel):
     id: str
     school_id: str
     enq_no: str
-    parent_name: str
     student_name: str
-    mobile: str
-    dob: Optional[date]
-    class_section_id: Optional[str]
-    purpose: str
-    date: date
+    parent_name: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+    class_seeking: Optional[str]
+    source: Optional[str]
     notes: Optional[str]
     status: str
     created_at: datetime
@@ -49,11 +46,10 @@ class EnquiryOut(BaseModel):
 class ParentGuardianCreate(BaseModel):
     relation: ParentRelation
     name: str
-    mobile: Optional[str] = None
+    phone: Optional[str] = None
     email: Optional[str] = None
     occupation: Optional[str] = None
-    qualification: Optional[str] = None
-    aadhar_no: Optional[str] = None
+    is_primary: bool = False
 
 
 class ParentGuardianOut(BaseModel):
@@ -61,17 +57,16 @@ class ParentGuardianOut(BaseModel):
     registration_id: str
     relation: str
     name: str
-    mobile: Optional[str]
+    phone: Optional[str]
     email: Optional[str]
     occupation: Optional[str]
-    qualification: Optional[str]
-    aadhar_no: Optional[str]
+    is_primary: bool
 
     model_config = {"from_attributes": True}
 
 
 class RegistrationCreate(BaseModel):
-    academic_year_id: str
+    academic_year_id: Optional[str] = None
     enquiry_id: Optional[str] = None
     student_fields: Optional[dict] = None
     parent_guardians: Optional[List[ParentGuardianCreate]] = None

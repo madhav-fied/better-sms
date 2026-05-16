@@ -5,6 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
+const STATUS_COLORS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  pending: 'default', accepted: 'secondary', rejected: 'destructive',
+};
+
 export default function RegistrationsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['registrations'],
@@ -20,7 +24,6 @@ export default function RegistrationsPage() {
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
             <tr>
               <th className="px-4 py-3 text-left">Student Name</th>
-              <th className="px-4 py-3 text-left">Class</th>
               <th className="px-4 py-3 text-left">Submitted</th>
               <th className="px-4 py-3 text-left">Status</th>
             </tr>
@@ -28,20 +31,21 @@ export default function RegistrationsPage() {
           <tbody className="divide-y">
             {isLoading
               ? Array(5).fill(0).map((_, i) => (
-                  <tr key={i}><td colSpan={4} className="px-4 py-3"><Skeleton className="h-4" /></td></tr>
+                  <tr key={i}><td colSpan={3} className="px-4 py-3"><Skeleton className="h-4" /></td></tr>
                 ))
-              : items.map((r: { id: string; student_name: string; class_name: string; created_at: string; status: string }) => (
+              : items.map((r: { id: string; student_fields?: { first_name?: string; last_name?: string }; submitted_at: string; status: string }) => (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <Link href={`/admissions/registrations/${r.id}`} className="text-blue-600 hover:underline">{r.student_name}</Link>
+                      <Link href={`/admissions/registrations/${r.id}`} className="text-blue-600 hover:underline">
+                        {[r.student_fields?.first_name, r.student_fields?.last_name].filter(Boolean).join(' ') || '—'}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3">{r.class_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.created_at?.split('T')[0]}</td>
-                    <td className="px-4 py-3"><Badge>{r.status}</Badge></td>
+                    <td className="px-4 py-3 text-gray-500">{r.submitted_at?.split('T')[0]}</td>
+                    <td className="px-4 py-3"><Badge variant={STATUS_COLORS[r.status] ?? 'secondary'}>{r.status}</Badge></td>
                   </tr>
                 ))}
             {!isLoading && items.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No registrations</td></tr>
+              <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">No registrations</td></tr>
             )}
           </tbody>
         </table>

@@ -18,6 +18,7 @@ from app.routers import (
     timetable,
     exam,
     result,
+    superadmin,
 )
 
 app = FastAPI(
@@ -52,6 +53,7 @@ app.include_router(communications.router, prefix=PREFIX, tags=["Communications"]
 app.include_router(timetable.router, prefix=PREFIX, tags=["Timetable"])
 app.include_router(exam.router, prefix=PREFIX, tags=["Exams"])
 app.include_router(result.router, prefix=PREFIX, tags=["Results"])
+app.include_router(superadmin.router, prefix=PREFIX, tags=["Superadmin"])
 
 
 @app.get("/health")

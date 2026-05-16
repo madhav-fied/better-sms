@@ -2,7 +2,21 @@ from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel
 
-from app.models.student import StudentGender, StudentType, AdmissionType, StudentStatus
+from app.models.student import StudentGender, AdmissionType
+
+
+class StudentCreate(BaseModel):
+    first_name: str
+    last_name: str
+    gender: StudentGender
+    class_section_id: str
+    academic_year_id: Optional[str] = None
+    dob: Optional[date] = None
+    blood_group: Optional[str] = None
+    aadhar_no: Optional[str] = None
+    student_type: str = "new"
+    hosteller: bool = False
+    admission_type: str = "regular"
 
 
 class StudentUpdate(BaseModel):
@@ -12,10 +26,10 @@ class StudentUpdate(BaseModel):
     dob: Optional[date] = None
     blood_group: Optional[str] = None
     aadhar_no: Optional[str] = None
-    sms_mobile: Optional[str] = None
     class_section_id: Optional[str] = None
     hosteller: Optional[bool] = None
     admission_type: Optional[AdmissionType] = None
+    status: Optional[str] = None
 
 
 class StudentOut(BaseModel):
@@ -30,13 +44,13 @@ class StudentOut(BaseModel):
     blood_group: Optional[str]
     aadhar_no: Optional[str]
     reg_no: Optional[str]
-    sms_mobile: Optional[str]
     class_section_id: str
-    student_type: str
+    class_name: Optional[str] = None
+    section: Optional[str] = None
+    student_type: Optional[str]
     hosteller: bool
-    admission_type: str
+    admission_type: Optional[str]
     status: str
-    tc_generated: bool
     registration_id: Optional[str]
     created_at: datetime
 

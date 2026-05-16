@@ -120,13 +120,29 @@ async def convert_enquiry(
     enq = res.scalar_one_or_none()
     if not enq:
         raise HTTPException(status_code=404, detail="Enquiry not found")
+
+    academic_year_id = body.academic_year_id
+    if not academic_year_id:
+        ay_res = await db.execute(
+            select(AcademicYear).where(AcademicYear.school_id == school_id, AcademicYear.is_active == True)
+        )
+        ay = ay_res.scalar_one_or_none()
+        if not ay:
+            raise HTTPException(status_code=400, detail="No active academic year. Please create one first.")
+        academic_year_id = ay.id
+
+    student_fields = body.student_fields or {
+        "first_name": enq.student_name,
+        "last_name": "",
+    }
+
     enq.status = "converted"
     guardians_data = body.parent_guardians or []
     reg = Registration(
         school_id=school_id,
-        academic_year_id=body.academic_year_id,
+        academic_year_id=academic_year_id,
         enquiry_id=enq_id,
-        student_fields=body.student_fields,
+        student_fields=student_fields,
     )
     db.add(reg)
     await db.flush()
@@ -167,10 +183,19 @@ async def create_registration(
     db: AsyncSession = Depends(get_db),
 ):
     school_id = user["school_id"]
+    academic_year_id = body.academic_year_id
+    if not academic_year_id:
+        ay_res = await db.execute(
+            select(AcademicYear).where(AcademicYear.school_id == school_id, AcademicYear.is_active == True)
+        )
+        ay = ay_res.scalar_one_or_none()
+        if not ay:
+            raise HTTPException(status_code=400, detail="No active academic year. Please create one first.")
+        academic_year_id = ay.id
     guardians_data = body.parent_guardians or []
     reg = Registration(
         school_id=school_id,
-        academic_year_id=body.academic_year_id,
+        academic_year_id=academic_year_id,
         enquiry_id=body.enquiry_id,
         student_fields=body.student_fields,
     )

@@ -32,6 +32,7 @@
 | [RFC-020](rfc-020-client-architecture.md) | Client Architecture | Active | Two-client strategy (web + mobile), shared conventions, monorepo layout, deployment |
 | [RFC-021](rfc-021-web-dashboard.md) | Web Admin Dashboard | Active | Next.js 15 admin dashboard — stack, page inventory, key flows (separate from mobile) |
 | [RFC-022](rfc-022-mobile-app.md) | Mobile App — Expo React Native | Active | Android app for actors (teacher/staff/student/parent) — navigation, screens, auth |
+| [RFC-023](rfc-023-superadmin-portal.md) | Super Admin Portal | Active | Superadmin web login (API key), school + first admin onboarding via UI |
 
 ---
 
@@ -321,6 +322,13 @@ POST   /subjects
 GET    /subjects
 PUT    /subjects/{id}
 DELETE /subjects/{id}
+```
+
+---
+
+### Superadmin (RFC-023)
+```
+POST   /superadmin/onboard-school
 ```
 
 ---

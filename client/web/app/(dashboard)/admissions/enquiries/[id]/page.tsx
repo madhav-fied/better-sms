@@ -20,7 +20,10 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
       toast.success('Converted to registration');
       router.push(`/admissions/registrations/${res.data?.id}`);
     },
-    onError: () => toast.error('Conversion failed'),
+    onError: (err: unknown) => {
+      const ex = err as { response?: { data?: { error?: string } } };
+      toast.error(ex.response?.data?.error ?? 'Conversion failed');
+    },
   });
 
   if (isLoading) return <Skeleton className="h-48 w-full" />;
@@ -29,18 +32,21 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
   return (
     <div className="space-y-4 max-w-xl">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{e.name}</h1>
+        <h1 className="text-xl font-semibold">{e.student_name}</h1>
         <Badge>{e.status}</Badge>
       </div>
       <div className="rounded-lg border bg-white p-4 space-y-2 text-sm">
-        <Row label="Phone" value={e.phone} />
-        <Row label="Class Interested" value={e.class_interested} />
-        <Row label="Date" value={e.created_at?.split('T')[0]} />
+        {e.parent_name && <Row label="Parent Name" value={e.parent_name} />}
+        {e.phone && <Row label="Phone" value={e.phone} />}
+        {e.email && <Row label="Email" value={e.email} />}
+        {e.class_seeking && <Row label="Class Seeking" value={e.class_seeking} />}
+        {e.source && <Row label="Source" value={e.source} />}
         {e.notes && <Row label="Notes" value={e.notes} />}
+        <Row label="Enquiry No" value={e.enq_no} />
       </div>
-      {e.status === 'visited' && (
+      {e.status === 'new' && (
         <Button onClick={() => convertMutation.mutate()} disabled={convertMutation.isPending}>
-          Convert to Registration
+          {convertMutation.isPending ? 'Converting…' : 'Convert to Registration'}
         </Button>
       )}
     </div>

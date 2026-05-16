@@ -23,9 +23,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           token,
           role: d.role,
           schoolId: d.school_id,
-          userId: d.id,
+          schoolName: d.school_name ?? null,
+          schoolBranchName: d.school_branch_name ?? null,
+          userId: d.user_id,
           entityId: d.entity_id,
-          expiresAt: d.expires_at,
+          expiresAt: d.expires_at ?? null,
         });
         setChecking(false);
       })
