@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional, List, Any
 from pydantic import BaseModel
 
@@ -45,22 +45,52 @@ class EnquiryOut(BaseModel):
 
 class ParentGuardianCreate(BaseModel):
     relation: ParentRelation
-    name: str
+    name: Optional[str] = None
+    first_name: str
+    last_name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     occupation: Optional[str] = None
     is_primary: bool = False
+    qualification: Optional[str] = None
+    aadhar_no: Optional[str] = None
+    dob: Optional[date] = None
+    bank_account: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    annual_income: Optional[int] = None
+    photo_url: Optional[str] = None
+    anniversary_date: Optional[date] = None
+    address: Optional[str] = None
+    guardian_relation: Optional[str] = None
+    alternate_mobile: Optional[str] = None
+    alternate_email: Optional[str] = None
+    emergency_mobile: Optional[str] = None
 
 
 class ParentGuardianOut(BaseModel):
     id: str
     registration_id: str
     relation: str
-    name: str
-    phone: Optional[str]
-    email: Optional[str]
-    occupation: Optional[str]
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    occupation: Optional[str] = None
     is_primary: bool
+    qualification: Optional[str] = None
+    aadhar_no: Optional[str] = None
+    dob: Optional[date] = None
+    bank_account: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    annual_income: Optional[int] = None
+    photo_url: Optional[str] = None
+    anniversary_date: Optional[date] = None
+    address: Optional[str] = None
+    guardian_relation: Optional[str] = None
+    alternate_mobile: Optional[str] = None
+    alternate_email: Optional[str] = None
+    emergency_mobile: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -75,7 +105,7 @@ class RegistrationCreate(BaseModel):
 class RegistrationOut(BaseModel):
     id: str
     school_id: str
-    academic_year_id: str
+    academic_year_id: Optional[str] = None
     enquiry_id: Optional[str]
     status: str
     submitted_at: datetime
@@ -83,6 +113,14 @@ class RegistrationOut(BaseModel):
     parent_guardians: List[ParentGuardianOut] = []
 
     model_config = {"from_attributes": True}
+
+
+class EnquiryStatusUpdate(BaseModel):
+    status: EnquiryStatus
+
+
+class RegistrationStatusUpdate(BaseModel):
+    status: RegistrationStatus
 
 
 class AdmitStudentIn(BaseModel):

@@ -9,6 +9,9 @@ export const getExam = (id: string) =>
 export const createExam = (data: unknown) =>
   apiClient.post('/exams', data).then((r) => r.data);
 
+export const updateExam = (id: string, data: Record<string, unknown>) =>
+  apiClient.put(`/exams/${id}`, data).then((r) => r.data);
+
 export const getExamSchedule = (examId: string) =>
   apiClient.get(`/exams/${examId}/schedule`).then((r) => r.data);
 

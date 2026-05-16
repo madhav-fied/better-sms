@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 async def _attach_class(db: AsyncSession, students: list[Student]) -> list[dict]:
-    cs_ids = list({s.class_section_id for s in students})
+    cs_ids = list({s.class_section_id for s in students if s.class_section_id})
     cs_map: dict[str, ClassSection] = {}
     if cs_ids:
         cs_res = await db.execute(select(ClassSection).where(ClassSection.id.in_(cs_ids)))
@@ -22,10 +22,11 @@ async def _attach_class(db: AsyncSession, students: list[Student]) -> list[dict]
     result = []
     for s in students:
         d = StudentOut.model_validate(s).model_dump()
-        cs = cs_map.get(s.class_section_id)
-        if cs:
-            d["class_name"] = cs.class_name
-            d["section"] = cs.section
+        if s.class_section_id:
+            cs = cs_map.get(s.class_section_id)
+            if cs:
+                d["class_name"] = cs.class_name
+                d["section"] = cs.section
         result.append(d)
     return result
 
@@ -40,42 +41,38 @@ async def create_student(
     school_id = user["school_id"]
 
     academic_year_id = body.academic_year_id
+    ay = None
     if not academic_year_id:
         ay_res = await db.execute(
             select(AcademicYear).where(AcademicYear.school_id == school_id, AcademicYear.is_active == True)
         )
         ay = ay_res.scalar_one_or_none()
-        if not ay:
-            raise HTTPException(status_code=400, detail="No active academic year. Please create one first.")
-        academic_year_id = ay.id
+        academic_year_id = ay.id if ay else None
     else:
         ay_res = await db.execute(select(AcademicYear).where(AcademicYear.id == academic_year_id))
         ay = ay_res.scalar_one_or_none()
 
     ay_year = ay.start_date.year if ay else date.today().year
-    count_res = await db.execute(
-        select(func.count()).select_from(Student).where(
+
+    if academic_year_id:
+        count_q = select(func.count()).select_from(Student).where(
             Student.school_id == school_id,
             Student.academic_year_id == academic_year_id,
         )
-    )
-    seq = (count_res.scalar_one() or 0) + 1
+    else:
+        count_q = select(func.count()).select_from(Student).where(
+            Student.school_id == school_id,
+        )
+    seq = ((await db.execute(count_q)).scalar_one() or 0) + 1
     admission_no = f"{ay_year}{seq:04d}"
 
+    student_data = body.model_dump(exclude_none=True)
+    student_data.pop("academic_year_id", None)
     student = Student(
         school_id=school_id,
         academic_year_id=academic_year_id,
         admission_no=admission_no,
-        first_name=body.first_name,
-        last_name=body.last_name,
-        gender=body.gender,
-        dob=body.dob,
-        blood_group=body.blood_group,
-        aadhar_no=body.aadhar_no,
-        class_section_id=body.class_section_id,
-        student_type=body.student_type,
-        hosteller=body.hosteller,
-        admission_type=body.admission_type,
+        **student_data,
     )
     db.add(student)
     await db.flush()
@@ -89,24 +86,73 @@ async def create_student(
 async def list_students(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    search: str = Query(None),
+    # text searches
+    search: str = Query(None),          # first_name / last_name / admission_no
+    admission_no: str = Query(None),
+    mobile: str = Query(None),          # sms_mobile
+    # dropdown filters
     class_section_id: str = Query(None),
     academic_year_id: str = Query(None),
+    gender: str = Query(None),
     status: str = Query(None),
+    student_type: str = Query(None),
+    admission_type: str = Query(None),
+    fee_type: str = Query(None),
+    caste_category: str = Query(None),
+    house_category: str = Query(None),
+    # boolean filters  (accept "true"/"false" strings)
+    hosteller: str = Query(None),
+    tc_generated: str = Query(None),
+    has_sibling: str = Query(None),
+    # dob range
+    dob_from: date = Query(None),
+    dob_to: date = Query(None),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
     school_id = user["school_id"]
     q = select(Student).where(Student.school_id == school_id)
+
     if search:
         like = f"%{search}%"
-        q = q.where(or_(Student.first_name.ilike(like), Student.last_name.ilike(like), Student.admission_no.ilike(like)))
+        q = q.where(or_(
+            Student.first_name.ilike(like),
+            Student.last_name.ilike(like),
+            Student.admission_no.ilike(like),
+        ))
+    if admission_no:
+        q = q.where(Student.admission_no.ilike(f"%{admission_no}%"))
+    if mobile:
+        like = f"%{mobile}%"
+        q = q.where(or_(Student.sms_mobile.ilike(like), Student.whatsapp_mobile.ilike(like)))
     if class_section_id:
         q = q.where(Student.class_section_id == class_section_id)
     if academic_year_id:
         q = q.where(Student.academic_year_id == academic_year_id)
+    if gender:
+        q = q.where(Student.gender == gender)
     if status:
         q = q.where(Student.status == status)
+    if student_type:
+        q = q.where(Student.student_type == student_type)
+    if admission_type:
+        q = q.where(Student.admission_type == admission_type)
+    if fee_type:
+        q = q.where(Student.fee_type == fee_type)
+    if caste_category:
+        q = q.where(Student.caste_category.ilike(f"%{caste_category}%"))
+    if house_category:
+        q = q.where(Student.house_category.ilike(f"%{house_category}%"))
+    if hosteller is not None:
+        q = q.where(Student.hosteller == (hosteller.lower() == "true"))
+    if tc_generated is not None:
+        q = q.where(Student.tc_generated == (tc_generated.lower() == "true"))
+    if has_sibling is not None:
+        q = q.where(Student.has_sibling == (has_sibling.lower() == "true"))
+    if dob_from:
+        q = q.where(Student.dob >= dob_from)
+    if dob_to:
+        q = q.where(Student.dob <= dob_to)
 
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit

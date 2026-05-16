@@ -9,8 +9,17 @@ export const getEnquiry = (id: string) =>
 export const createEnquiry = (data: Record<string, unknown>) =>
   apiClient.post('/enquiries', data).then((r) => r.data);
 
+export const updateEnquiry = (id: string, data: Record<string, unknown>) =>
+  apiClient.put(`/enquiries/${id}`, data).then((r) => r.data);
+
 export const convertEnquiry = (id: string) =>
   apiClient.post(`/enquiries/${id}/convert`, {}).then((r) => r.data);
+
+export const updateEnquiryStatus = (id: string, status: string) =>
+  apiClient.patch(`/enquiries/${id}/status`, { status }).then((r) => r.data);
+
+export const updateRegistrationStatus = (id: string, status: string) =>
+  apiClient.patch(`/registrations/${id}/status`, { status }).then((r) => r.data);
 
 export const getRegistrations = (params?: Record<string, unknown>) =>
   apiClient.get('/registrations', { params }).then((r) => r.data);

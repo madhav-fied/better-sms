@@ -30,8 +30,11 @@ Admissions → Enquiries → "+ New Enquiry"
 
 List View (Admissions → Enquiries):
   → Table: enq_no, student_name, parent_name, mobile, class, purpose, status, date
-  → Filters: date range, status (open/converted/rejected), class, purpose
+  → Filters: date range, status (new/converted/rejected), class, purpose
   → Row actions: View, Edit, Convert to Registration, Reject
+  → Status column: inline editable — clicking the status opens a dropdown to change
+    it directly (new | converted | rejected). Allows correcting mistakes without
+    navigating away.
 ```
 
 **Edge cases:**
@@ -69,6 +72,8 @@ Admissions → Registrations
   → Table: reg_no, student_name, class, status, submitted_at
   → Filters: status, class_section, name search, date range
   → Row actions: View, Edit, Accept, Reject, Download Admission Form (PDF)
+  → Status column: inline editable — dropdown to change pending | accepted | rejected
+    directly in the row. Allows correcting mistakes.
 ```
 
 **Accept flow:**
@@ -170,12 +175,28 @@ class ParentRelation(str, Enum):
 
 class ParentGuardianCreate(BaseModel):
     relation: ParentRelation
-    name: str
-    mobile: str
+    first_name: str
+    last_name: Optional[str] = None
+    mobile: Optional[str] = None
     email: Optional[str] = None
     occupation: Optional[str] = None
     qualification: Optional[str] = None
     aadhar_no: Optional[str] = None
+    dob: Optional[date] = None
+    bank_account: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    annual_income: Optional[int] = None
+    photo_url: Optional[str] = None
+    # Father-specific
+    anniversary_date: Optional[date] = None
+    # Guardian-specific
+    address: Optional[str] = None
+    guardian_relation: Optional[str] = None   # e.g. "Uncle", "Grandparent"
+    alternate_mobile: Optional[str] = None
+    alternate_email: Optional[str] = None
+    # Shared emergency contact
+    emergency_mobile: Optional[str] = None
+    is_primary: bool = False
 
 class RegistrationStudentFields(BaseModel):
     first_name: str
@@ -192,6 +213,7 @@ class RegistrationCreate(BaseModel):
     student: RegistrationStudentFields
     parents: List[ParentGuardianCreate]   # 1–3
     enquiry_id: Optional[int] = None      # links back if converted from enquiry
+    academic_year_id: Optional[int] = None  # falls back to active AY; null if none exists
 
 class RegistrationStatus(str, Enum):
     pending = "pending"
@@ -201,7 +223,7 @@ class RegistrationStatus(str, Enum):
 class RegistrationResponse(BaseModel):
     id: int
     school_id: int
-    academic_year_id: int
+    academic_year_id: Optional[int]       # null when created before any AY exists
     enquiry_id: Optional[int]
     student_id: Optional[int]             # null until admitted
     status: RegistrationStatus
@@ -308,6 +330,14 @@ Response: 200 { success: true, data: { id, status: "rejected" } }
 Errors:   409 if already converted
 ```
 
+**PATCH /enquiries/{id}/status**
+```
+Request:  { status: "new" | "converted" | "rejected" }
+Response: 200 { success: true, data: EnquiryResponse }
+Note:     Direct status override for in-table editing. Allows correcting mistakes
+          (e.g., resetting a wrongly-converted enquiry back to new).
+```
+
 ---
 
 ### 4.2 Registrations
@@ -360,6 +390,13 @@ Response: 200 { success: true, data: { id, status: "rejected" } }
 Errors:   409 if status != pending
 ```
 
+**PATCH /registrations/{id}/status**
+```
+Request:  { status: "pending" | "accepted" | "rejected" }
+Response: 200 { success: true, data: RegistrationResponse }
+Note:     Direct status override for in-table editing. Allows correcting mistakes.
+```
+
 **GET /registrations/{id}/admission-form**
 ```
 Response: 200  Content-Type: application/pdf
@@ -398,13 +435,17 @@ Errors:
 ## 5. State Machine
 
 ```
-Enquiry:      open ──convert──→ converted
-                   └──reject──→ rejected
+Enquiry:      new ──convert──→ converted
+                  └──reject──→ rejected
+              (any) ←── PATCH /status ───→ (any)   # admin correction
 
 Registration: pending ──accept──→ accepted ──admit──→ (Student created)
                       └──reject──→ rejected
+              (any) ←── PATCH /status ───→ (any)   # admin correction
 
-Note: rejected registrations cannot be re-opened. Create a new one.
+Note: PATCH /status bypasses the normal flow for mistake correction only.
+      Rejected registrations should normally require a new submission, but
+      the status endpoint exists for admin override when a mistake was made.
 ```
 
 ---

@@ -1,8 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getEnquiries, createEnquiry } from '@/lib/api/admissions';
-import { Badge } from '@/components/ui/badge';
+import { getEnquiries, createEnquiry, updateEnquiryStatus } from '@/lib/api/admissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,8 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import Link from 'next/link';
 import { toast } from 'sonner';
 
-const STATUS_COLORS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  new: 'default', converted: 'secondary', rejected: 'destructive',
+const ENQ_STATUSES = ['new', 'converted', 'rejected'] as const;
+type EnqStatus = typeof ENQ_STATUSES[number];
+
+const STATUS_STYLES: Record<EnqStatus, string> = {
+  new: 'bg-blue-50 text-blue-700 border-blue-200',
+  converted: 'bg-green-50 text-green-700 border-green-200',
+  rejected: 'bg-red-50 text-red-700 border-red-200',
 };
 
 const EMPTY_FORM = {
@@ -21,19 +25,20 @@ const EMPTY_FORM = {
 
 export default function EnquiriesPage() {
   const qc = useQueryClient();
-  const [status, setStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['enquiries', status],
-    queryFn: () => getEnquiries({ status: status || undefined, limit: 30 }),
+    queryKey: ['enquiries', filterStatus],
+    queryFn: () => getEnquiries({ status: filterStatus || undefined, limit: 100 }),
   });
   const items = data?.data ?? [];
 
   const set = (f: keyof typeof EMPTY_FORM, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
-  const mutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: createEnquiry,
     onSuccess: () => {
       toast.success('Enquiry created');
@@ -47,9 +52,27 @@ export default function EnquiriesPage() {
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => updateEnquiryStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['enquiries'] });
+      toast.success('Status updated');
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { error?: string } } };
+      toast.error(e.response?.data?.error ?? 'Failed to update status');
+    },
+    onSettled: () => setUpdatingId(null),
+  });
+
+  const handleStatusChange = (id: string, status: string) => {
+    setUpdatingId(id);
+    statusMutation.mutate({ id, status });
+  };
+
   const submit = () => {
     if (!form.student_name.trim()) { toast.error('Student name is required'); return; }
-    mutation.mutate({
+    createMutation.mutate({
       student_name: form.student_name,
       parent_name: form.parent_name || undefined,
       phone: form.phone || undefined,
@@ -66,8 +89,8 @@ export default function EnquiriesPage() {
       </div>
       <select
         className="border rounded px-3 py-2 text-sm"
-        value={status}
-        onChange={(e) => setStatus(e.target.value)}
+        value={filterStatus}
+        onChange={(e) => setFilterStatus(e.target.value)}
       >
         <option value="">All statuses</option>
         <option value="new">New</option>
@@ -99,7 +122,16 @@ export default function EnquiriesPage() {
                     <td className="px-4 py-3 text-gray-500">{e.phone ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{e.class_seeking ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <Badge variant={STATUS_COLORS[e.status] ?? 'secondary'}>{e.status}</Badge>
+                      <select
+                        value={e.status}
+                        disabled={updatingId === e.id}
+                        onChange={(evt) => handleStatusChange(e.id, evt.target.value)}
+                        className={`text-xs font-medium rounded-full border px-2 py-0.5 cursor-pointer outline-none transition-opacity disabled:opacity-50 ${STATUS_STYLES[e.status as EnqStatus] ?? 'bg-gray-50 text-gray-700 border-gray-200'}`}
+                      >
+                        {ENQ_STATUSES.map((s) => (
+                          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                        ))}
+                      </select>
                     </td>
                   </tr>
                 ))}
@@ -136,8 +168,8 @@ export default function EnquiriesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={mutation.isPending}>Cancel</Button>
-            <Button onClick={submit} disabled={mutation.isPending}>{mutation.isPending ? 'Creating…' : 'Create'}</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={createMutation.isPending}>Cancel</Button>
+            <Button onClick={submit} disabled={createMutation.isPending}>{createMutation.isPending ? 'Creating…' : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

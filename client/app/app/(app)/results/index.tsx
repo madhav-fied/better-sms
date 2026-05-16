@@ -32,7 +32,7 @@ export default function ResultsScreen() {
     enabled: !isTeacher && !!entityId,
   });
 
-  const students: { id: string; name: string }[] = studentsData ?? [];
+  const students: { id: string; name?: string; first_name?: string; last_name?: string }[] = studentsData ?? [];
 
   const saveMutation = useMutation({
     mutationFn: () => bulkSaveResults(students.map((s) => ({ student_id: s.id, exam_id: examId, subject_id: subjectId, marks_obtained: Number(marks[s.id] ?? 0) }))),
@@ -88,7 +88,9 @@ export default function ResultsScreen() {
         ))}
         {students.map((s) => (
           <Card key={s.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 14 }}>{s.name}</Text>
+            <Text style={{ fontSize: 14 }}>
+              {s.first_name ? `${s.first_name} ${s.last_name ?? ''}`.trim() : (s.name ?? '')}
+            </Text>
             <TextInput
               placeholder="Marks"
               value={marks[s.id] ?? ''}

@@ -4,18 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getStudentAttendanceHistory } from '@/lib/api/attendance';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import apiClient from '@/lib/api/client';
-
-interface ClassSection { id: string; class_name: string; section: string }
+import { ClassSectionPicker } from '@/components/shared/ClassSectionPicker';
 
 export default function AttendanceHistoryPage() {
   const [classSectionId, setClassSectionId] = useState('');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-
-  const { data: sections } = useQuery({
-    queryKey: ['class-sections'],
-    queryFn: () => apiClient.get('/class-sections').then((r) => r.data?.data ?? []),
-  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['attendance-history', classSectionId, month],
@@ -28,16 +21,11 @@ export default function AttendanceHistoryPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Attendance History</h1>
       <div className="flex gap-3 flex-wrap">
-        <select
-          className="border rounded px-3 py-2 text-sm"
+        <ClassSectionPicker
           value={classSectionId}
-          onChange={(e) => setClassSectionId(e.target.value)}
-        >
-          <option value="">— select class —</option>
-          {(sections ?? []).map((c: ClassSection) => (
-            <option key={c.id} value={c.id}>{c.class_name} {c.section}</option>
-          ))}
-        </select>
+          onChange={setClassSectionId}
+          className="w-56"
+        />
         <input type="month" className="border rounded px-3 py-2 text-sm" value={month} onChange={(e) => setMonth(e.target.value)} />
       </div>
 

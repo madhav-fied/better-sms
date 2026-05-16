@@ -9,5 +9,8 @@ export const getHomeworkById = (id: string) =>
 export const createHomework = (data: unknown) =>
   apiClient.post('/homework', data).then((r) => r.data);
 
+export const updateHomework = (id: string, data: Record<string, unknown>) =>
+  apiClient.put(`/homework/${id}`, data).then((r) => r.data);
+
 export const deleteHomework = (id: string) =>
   apiClient.delete(`/homework/${id}`).then((r) => r.data);

@@ -42,11 +42,18 @@ Staff → "+ Register Staff"
 
 ```
 Staff → All Staff
-  → Table: Emp Code, Name, Category, Grade, Gender, Mobile, Status, Actions
-  → Filters: Category, Status (active/inactive), Gender, Grade, Name search
-  → Row actions: View/Edit, Upload Docs, Deactivate
-  → Filter by class_section_id → shows teachers assigned to that section
+  → Table: Name, Emp Code, Mobile, Category, Designation, Status
+  → Record count shown below heading
+  → Filter bar (always visible, 2 rows):
+      Row 1: Search (name / emp code / mobile / email), Category, Status
+      Row 2: Gender, Teaching Type, Grade, Designation
+  → Active filter chips with × dismiss; "Search" applies, "Clear all" resets
+  → Row: click name → staff detail page
+  → Row actions: View, Edit, Deactivate/Reactivate
 ```
+
+**Filter params sent to GET /staff:**
+`search`, `category`, `status`, `gender`, `teaching_type`, `grade`, `designation`
 
 ---
 
@@ -127,45 +134,185 @@ class StaffStatus(str, Enum):
     active = "active"
     inactive = "inactive"
 
+class MaritalStatus(str, Enum):
+    single = "single"
+    married = "married"
+    divorced = "divorced"
+    widowed = "widowed"
+
+class TeachingType(str, Enum):
+    regular = "regular"
+    contract = "contract"
+    guest = "guest"
+    part_time = "part_time"
+
+class JobType(str, Enum):
+    full_time = "full_time"
+    part_time = "part_time"
+    contract = "contract"
+    probation = "probation"
+
+class JobStatus(str, Enum):
+    active = "active"
+    on_leave = "on_leave"
+    resigned = "resigned"
+    terminated = "terminated"
+
 class StaffCreate(BaseModel):
-    emp_code: str
-    name: str
-    dob: date
-    gender: str                            # male|female|other
-    mobile: str
+    # Core identity — only first_name, gender, category required
+    first_name: str
+    last_name: Optional[str] = None
+    short_name: Optional[str] = None
+    gender: str                             # male|female|other
     email: Optional[EmailStr] = None
+    mobile: Optional[str] = None
+    dob: Optional[date] = None
+    religion: Optional[str] = None
     aadhar_no: Optional[str] = None
-    permanent_address: str
+    blood_group: Optional[str] = None
+    caste_category: Optional[str] = None
+
+    # Address
+    contact_address: Optional[str] = None
+    pincode: Optional[str] = None
+    permanent_address: Optional[str] = None
+    city_state: Optional[str] = None
+
+    # Employment
+    emp_code: Optional[str] = None          # auto-generated as EMP{seq:04d} if omitted
     category: StaffCategory
+    designation: Optional[str] = None
+    qualification: Optional[str] = None
+    teaching_type: Optional[TeachingType] = None  # only when category=teacher
     grade: Optional[str] = None
+    basic_salary: Optional[float] = None
+    total_experience: Optional[int] = None  # in months
+    card_number: Optional[str] = None
+    relieving_date: Optional[date] = None
+    licensee_number: Optional[str] = None
+    passport_number: Optional[str] = None
+
+    # Emergency
+    emergency_mobile: Optional[str] = None
+
+    # Family
+    father_first_name: Optional[str] = None
+    father_last_name: Optional[str] = None
+    mother_first_name: Optional[str] = None
+    mother_last_name: Optional[str] = None
+    marital_status: Optional[MaritalStatus] = None
+    spouse_name: Optional[str] = None
+
+    # Media
+    photo_url: Optional[str] = None
 
 class StaffUpdate(BaseModel):
-    name: Optional[str] = None
-    dob: Optional[date] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    short_name: Optional[str] = None
     gender: Optional[str] = None
-    mobile: Optional[str] = None
     email: Optional[EmailStr] = None
+    mobile: Optional[str] = None
+    dob: Optional[date] = None
+    religion: Optional[str] = None
     aadhar_no: Optional[str] = None
+    blood_group: Optional[str] = None
+    caste_category: Optional[str] = None
+    contact_address: Optional[str] = None
+    pincode: Optional[str] = None
     permanent_address: Optional[str] = None
+    city_state: Optional[str] = None
+    emp_code: Optional[str] = None
     category: Optional[StaffCategory] = None
+    designation: Optional[str] = None
+    qualification: Optional[str] = None
+    teaching_type: Optional[TeachingType] = None
     grade: Optional[str] = None
+    basic_salary: Optional[float] = None
+    total_experience: Optional[int] = None
+    card_number: Optional[str] = None
+    relieving_date: Optional[date] = None
+    licensee_number: Optional[str] = None
+    passport_number: Optional[str] = None
+    emergency_mobile: Optional[str] = None
+    father_first_name: Optional[str] = None
+    father_last_name: Optional[str] = None
+    mother_first_name: Optional[str] = None
+    mother_last_name: Optional[str] = None
+    marital_status: Optional[MaritalStatus] = None
+    spouse_name: Optional[str] = None
+    photo_url: Optional[str] = None
 
-class StaffResponse(StaffCreate):
-    id: int
-    school_id: int
+class StaffResponse(BaseModel):
+    id: str
+    school_id: str
+    emp_code: str
+    first_name: str
+    last_name: Optional[str]
+    short_name: Optional[str]
+    gender: str
+    email: Optional[str]
+    mobile: Optional[str]
+    dob: Optional[date]
+    religion: Optional[str]
+    aadhar_no: Optional[str]
+    blood_group: Optional[str]
+    caste_category: Optional[str]
+    contact_address: Optional[str]
+    pincode: Optional[str]
+    permanent_address: Optional[str]
+    city_state: Optional[str]
+    category: StaffCategory
+    designation: Optional[str]
+    qualification: Optional[str]
+    teaching_type: Optional[TeachingType]
+    grade: Optional[str]
+    basic_salary: Optional[float]
+    total_experience: Optional[int]
+    card_number: Optional[str]
+    relieving_date: Optional[date]
+    licensee_number: Optional[str]
+    passport_number: Optional[str]
+    emergency_mobile: Optional[str]
+    father_first_name: Optional[str]
+    father_last_name: Optional[str]
+    mother_first_name: Optional[str]
+    mother_last_name: Optional[str]
+    marital_status: Optional[MaritalStatus]
+    spouse_name: Optional[str]
+    photo_url: Optional[str]
     status: StaffStatus
     created_at: datetime
+    job_detail: Optional["StaffJobDetailResponse"] = None
+
+# Job details — separate record, one-to-one with Staff
+class StaffJobDetailCreate(BaseModel):
+    joined_date: Optional[date] = None
+    end_of_probation: Optional[date] = None
+    position: Optional[str] = None
+    effective_date: Optional[date] = None
+    superior: Optional[str] = None         # free-text name or staff_id reference
+    department: Optional[str] = None
+    branch: Optional[str] = None
+    job_type: Optional[JobType] = None
+    job_status: Optional[JobStatus] = None
+    workdays: Optional[int] = None         # working days per week/cycle
+    holidays: Optional[int] = None         # holidays per year
+
+class StaffJobDetailResponse(StaffJobDetailCreate):
+    id: str
+    staff_id: str
 
 class TeacherSubjectCreate(BaseModel):
-    staff_id: int
+    staff_id: str
     subject: str
-    class_section_id: int
-    academic_year_id: Optional[int] = None   # defaults to active AY
+    class_section_id: str
+    academic_year_id: Optional[str] = None   # defaults to active AY
 
 class TeacherSubjectResponse(TeacherSubjectCreate):
-    id: int
-    school_id: int
-    academic_year_id: int
+    id: str
+    school_id: str
+    academic_year_id: str
 
 class TeacherSpecializationEntry(BaseModel):
     staff: StaffResponse
@@ -182,32 +329,34 @@ class TeacherSpecializationEntry(BaseModel):
 ```python
 POST   /staff                          # register staff
 GET    /staff                          # list with filters
-GET    /staff/{id}                     # detail
-PUT    /staff/{id}                     # edit
+GET    /staff/{id}                     # detail (includes job_detail)
+PUT    /staff/{id}                     # edit personal info
 PATCH  /staff/{id}/status              # activate / deactivate
+PUT    /staff/{id}/job-detail          # create or update job detail record
 POST   /staff/{id}/documents           # upload docs (see RFC-005)
 ```
 
 **POST /staff**
 ```
 Request:  StaffCreate
-Response: 201 { success: true, data: { staff_id: int, emp_code: str } }
+Response: 201 { success: true, data: { staff_id: str, emp_code: str } }
 Errors:
   409 if emp_code already exists in this school
   409 if aadhar_no already exists in this school
-  409 if email already exists in this school (if provided)
+  409 if email already exists in this school
 ```
 
 **GET /staff**
 ```
 Query params:
+  search?: str                     # searches first_name + last_name + emp_code + mobile + email
+  name?: str                       # backward-compat alias for search
   category?: StaffCategory
-  name?: str
   status?: StaffStatus
   gender?: str
-  grade?: str
-  class_section_id?: int           # returns teachers assigned to this section
-  academic_year_id?: int           # scopes class_section_id filter
+  grade?: str                      # partial match (ilike)
+  designation?: str                # partial match (ilike)
+  teaching_type?: TeachingType
   page: int = 1
   limit: int = 20
 
@@ -234,8 +383,17 @@ Side effects when status → inactive:
 
 Response includes: {
   id, status,
-  unassigned_class_sections: int[]   # IDs of sections where class_teacher was cleared
+  unassigned_class_sections: str[]   # IDs of sections where class_teacher was cleared
 }
+```
+
+**PUT /staff/{id}/job-detail**
+```
+Request:  StaffJobDetailCreate
+Response: 200 { success: true, data: StaffJobDetailResponse }
+Note:     Upsert — creates if not exists, updates if exists.
+Errors:
+  404 if staff not found
 ```
 
 ---
@@ -304,10 +462,13 @@ Note: Only returns staff where category = "teacher" and status = "active".
 
 | Field | Rule |
 |-------|------|
-| `emp_code` | Unique per school |
-| `aadhar_no` | Unique per school (if provided) |
-| `email` | Unique per school (if provided) |
+| `emp_code` | Unique per school; auto-generated if omitted |
+| `aadhar_no` | Required; unique per school |
+| `email` | Required; unique per school |
 | `category` | Must be from StaffCategory enum |
+| `teaching_type` | Only relevant when `category = teacher`; ignored otherwise |
+| `basic_salary` | Non-negative float |
+| `total_experience` | Non-negative integer (months) |
 | TeacherSubject | Only staff with `category = teacher` can be assigned subjects |
 | Class Teacher | Only staff with `category = teacher` can be set as `class_teacher_id` on ClassSection |
 

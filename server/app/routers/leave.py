@@ -8,7 +8,7 @@ from app.deps import get_current_user, CurrentUser, require_admin, require_teach
 from app.models.leave import Leave
 from app.models.attendance import StudentAttendanceRecord
 from app.models.student import Student
-from app.schemas.leave import LeaveCreate, LeaveReviewIn, LeaveOut
+from app.schemas.leave import LeaveCreate, LeaveUpdate, LeaveReviewIn, LeaveOut
 from app.schemas.common import Response, ok
 
 router = APIRouter()
@@ -129,6 +129,27 @@ async def get_leave(leave_id: str, db: AsyncSession = Depends(get_db), user: dic
     leave = res.scalar_one_or_none()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave not found")
+    return ok(LeaveOut.model_validate(leave).model_dump())
+
+
+@router.put("/leaves/{leave_id}", response_model=Response)
+async def update_leave(
+    leave_id: str,
+    body: LeaveUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    res = await db.execute(select(Leave).where(Leave.id == leave_id, Leave.school_id == user["school_id"]))
+    leave = res.scalar_one_or_none()
+    if not leave:
+        raise HTTPException(status_code=404, detail="Leave not found")
+    if leave.status != "pending":
+        raise HTTPException(status_code=400, detail="Only pending leaves can be edited")
+    for k, v in body.model_dump(exclude_none=True).items():
+        setattr(leave, k, v)
+    await db.flush()
+    await db.refresh(leave)
     return ok(LeaveOut.model_validate(leave).model_dump())
 
 

@@ -15,6 +15,14 @@ class LeaveCreate(BaseModel):
     reason: Optional[str] = None
 
 
+class LeaveUpdate(BaseModel):
+    leave_type: Optional[LeaveType] = None
+    from_date: Optional[date] = None
+    to_date: Optional[date] = None
+    days: Optional[int] = None
+    reason: Optional[str] = None
+
+
 class LeaveReviewIn(BaseModel):
     review_note: Optional[str] = None
 

@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { ClassSectionPicker } from '@/components/shared/ClassSectionPicker';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -16,10 +17,6 @@ export default function TimetablePage() {
   const { data: periods, isLoading: loadingPeriods } = useQuery({
     queryKey: ['period-config'],
     queryFn: getPeriodConfig,
-  });
-  const { data: sections } = useQuery({
-    queryKey: ['class-sections'],
-    queryFn: () => apiClient.get('/class-sections').then((r) => r.data?.data ?? []),
   });
   const { data: subjects } = useQuery({
     queryKey: ['subjects'],
@@ -46,16 +43,11 @@ export default function TimetablePage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Timetable</h1>
-      <select
-        className="border rounded px-3 py-2 text-sm"
+      <ClassSectionPicker
         value={classSectionId}
-        onChange={(e) => setClassSectionId(e.target.value)}
-      >
-        <option value="">— select class —</option>
-        {(sections ?? []).map((c: { id: string; class_name: string; section: string }) => (
-          <option key={c.id} value={c.id}>{c.class_name} {c.section}</option>
-        ))}
-      </select>
+        onChange={setClassSectionId}
+        className="w-56"
+      />
 
       {classSectionId && (
         <div className="overflow-x-auto rounded-lg border bg-white">

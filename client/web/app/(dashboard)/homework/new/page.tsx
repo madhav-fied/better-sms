@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { ClassSectionPicker } from '@/components/shared/ClassSectionPicker';
 
 export default function NewHomeworkPage() {
   const router = useRouter();
@@ -36,6 +37,13 @@ export default function NewHomeworkPage() {
         <div className="space-y-1.5">
           <Label>Due Date</Label>
           <Input type="date" value={form.due_date} onChange={set('due_date')} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Class Section</Label>
+          <ClassSectionPicker
+            value={form.class_section_id}
+            onChange={(id) => setForm((f) => ({ ...f, class_section_id: id }))}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Description</Label>

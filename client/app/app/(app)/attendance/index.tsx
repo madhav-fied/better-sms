@@ -5,13 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRole } from '../../../hooks/useRole';
 import { useAuthStore } from '../../../store/auth';
 import { getAttendanceHistory, markStudentAttendance } from '../../../lib/api/attendance';
+import { getClassSections } from '../../../lib/api/core';
 import apiClient from '../../../lib/api/client';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Spinner } from '../../../components/ui/Spinner';
 import { Badge } from '../../../components/ui/Badge';
 
-interface Student { id: string; name: string }
+interface Student { id: string; name?: string; first_name?: string; last_name?: string }
 interface ClassSection { id: string; class_name: string; section: string }
 
 export default function AttendanceScreen() {
@@ -24,11 +25,12 @@ export default function AttendanceScreen() {
   const isTeacher = role === 'teacher' || role === 'admin';
   const isViewer = role === 'student' || role === 'parent';
 
-  const { data: sections } = useQuery({
+  const { data: sectionsData } = useQuery({
     queryKey: ['class-sections'],
-    queryFn: () => apiClient.get('/class-sections').then((r) => r.data?.data ?? []),
+    queryFn: () => getClassSections({ limit: 200 }),
     enabled: isTeacher,
   });
+  const sections = sectionsData?.data ?? [];
 
   const { data: studentsData } = useQuery({
     queryKey: ['att-students', classSectionId],
@@ -104,7 +106,9 @@ export default function AttendanceScreen() {
 
         {students.map((s) => (
           <Card key={s.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, color: '#111827' }}>{s.name}</Text>
+            <Text style={{ fontSize: 14, color: '#111827' }}>
+              {s.first_name ? `${s.first_name} ${s.last_name ?? ''}`.trim() : (s.name ?? '')}
+            </Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {(['present', 'absent', 'leave'] as const).map((status) => (
                 <TouchableOpacity

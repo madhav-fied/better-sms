@@ -9,6 +9,7 @@ from app.models.admission import Enquiry, Registration, ParentGuardian
 from app.models.core import AcademicYear
 from app.schemas.admission import (
     EnquiryCreate, EnquiryUpdate, EnquiryOut,
+    EnquiryStatusUpdate, RegistrationStatusUpdate,
     RegistrationCreate, RegistrationOut,
     ParentGuardianOut, AdmitStudentIn,
 )
@@ -127,9 +128,7 @@ async def convert_enquiry(
             select(AcademicYear).where(AcademicYear.school_id == school_id, AcademicYear.is_active == True)
         )
         ay = ay_res.scalar_one_or_none()
-        if not ay:
-            raise HTTPException(status_code=400, detail="No active academic year. Please create one first.")
-        academic_year_id = ay.id
+        academic_year_id = ay.id if ay else None
 
     student_fields = body.student_fields or {
         "first_name": enq.student_name,
@@ -173,6 +172,24 @@ async def reject_enquiry(
     return ok(EnquiryOut.model_validate(enq).model_dump())
 
 
+@router.patch("/enquiries/{enq_id}/status", response_model=Response)
+async def update_enquiry_status(
+    enq_id: str,
+    body: EnquiryStatusUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    res = await db.execute(select(Enquiry).where(Enquiry.id == enq_id, Enquiry.school_id == user["school_id"]))
+    enq = res.scalar_one_or_none()
+    if not enq:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    enq.status = body.status.value
+    await db.flush()
+    await db.refresh(enq)
+    return ok(EnquiryOut.model_validate(enq).model_dump())
+
+
 # ── Registrations ─────────────────────────────────────────────────────────────
 
 @router.post("/registrations", response_model=Response)
@@ -189,9 +206,7 @@ async def create_registration(
             select(AcademicYear).where(AcademicYear.school_id == school_id, AcademicYear.is_active == True)
         )
         ay = ay_res.scalar_one_or_none()
-        if not ay:
-            raise HTTPException(status_code=400, detail="No active academic year. Please create one first.")
-        academic_year_id = ay.id
+        academic_year_id = ay.id if ay else None
     guardians_data = body.parent_guardians or []
     reg = Registration(
         school_id=school_id,
@@ -240,6 +255,26 @@ async def get_registration(reg_id: str, db: AsyncSession = Depends(get_db), user
     reg = res.scalar_one_or_none()
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found")
+    guardians_res = await db.execute(select(ParentGuardian).where(ParentGuardian.registration_id == reg.id))
+    guardians = guardians_res.scalars().all()
+    return ok(_reg_out(reg, guardians))
+
+
+@router.patch("/registrations/{reg_id}/status", response_model=Response)
+async def update_registration_status(
+    reg_id: str,
+    body: RegistrationStatusUpdate,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    res = await db.execute(select(Registration).where(Registration.id == reg_id, Registration.school_id == user["school_id"]))
+    reg = res.scalar_one_or_none()
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found")
+    reg.status = body.status.value
+    await db.flush()
+    await db.refresh(reg)
     guardians_res = await db.execute(select(ParentGuardian).where(ParentGuardian.registration_id == reg.id))
     guardians = guardians_res.scalars().all()
     return ok(_reg_out(reg, guardians))
@@ -301,13 +336,19 @@ async def admit_student(
     if reg.status != "accepted":
         raise HTTPException(status_code=400, detail="Registration must be accepted before admitting")
 
-    ay_res = await db.execute(select(AcademicYear).where(AcademicYear.id == reg.academic_year_id))
-    ay = ay_res.scalar_one_or_none()
+    ay = None
+    if reg.academic_year_id:
+        ay_res = await db.execute(select(AcademicYear).where(AcademicYear.id == reg.academic_year_id))
+        ay = ay_res.scalar_one_or_none()
     ay_year = ay.start_date.year if ay else date.today().year
 
-    count_res = await db.execute(
-        select(func.count()).select_from(Student).where(Student.school_id == school_id, Student.academic_year_id == reg.academic_year_id)
-    )
+    if reg.academic_year_id:
+        count_q = select(func.count()).select_from(Student).where(
+            Student.school_id == school_id, Student.academic_year_id == reg.academic_year_id
+        )
+    else:
+        count_q = select(func.count()).select_from(Student).where(Student.school_id == school_id)
+    count_res = await db.execute(count_q)
     seq = (count_res.scalar_one() or 0) + 1
     admission_no = f"{ay_year}{seq:04d}"
 
