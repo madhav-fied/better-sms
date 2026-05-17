@@ -68,8 +68,7 @@ def upgrade() -> None:
     op.add_column("staff", sa.Column("contact_address", sa.Text, nullable=True))
     op.add_column("staff", sa.Column("pincode", sa.String(10), nullable=True))
     op.add_column("staff", sa.Column("city_state", sa.String(100), nullable=True))
-    op.add_column("staff", sa.Column("designation", sa.String(100), nullable=True))
-    op.add_column("staff", sa.Column("qualification", sa.String(255), nullable=True))
+    # designation and qualification already exist from migration 001
     op.add_column("staff", sa.Column("teaching_type", sa.String(20), nullable=True))
     op.add_column("staff", sa.Column("basic_salary", sa.Numeric(12, 2), nullable=True))
     op.add_column("staff", sa.Column("total_experience", sa.Integer, nullable=True))
@@ -162,8 +161,7 @@ def downgrade() -> None:
     op.drop_column("staff", "total_experience")
     op.drop_column("staff", "basic_salary")
     op.drop_column("staff", "teaching_type")
-    op.drop_column("staff", "qualification")
-    op.drop_column("staff", "designation")
+    # designation and qualification are from migration 001, not dropped here
     op.drop_column("staff", "city_state")
     op.drop_column("staff", "pincode")
     op.drop_column("staff", "contact_address")

@@ -4,10 +4,12 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRole } from '../../../hooks/useRole';
 import { useAuthStore } from '../../../store/auth';
+import { useParentChildStore } from '../../../store/parentChild';
 import { getAttendanceHistory, markStudentAttendance } from '../../../lib/api/attendance';
 import { getClassSections } from '../../../lib/api/core';
 import apiClient from '../../../lib/api/client';
 import { Card } from '../../../components/ui/Card';
+import { ChildSelector } from '../../../components/ChildSelector';
 import { Button } from '../../../components/ui/Button';
 import { Spinner } from '../../../components/ui/Spinner';
 import { Badge } from '../../../components/ui/Badge';
@@ -18,12 +20,14 @@ interface ClassSection { id: string; class_name: string; section: string }
 export default function AttendanceScreen() {
   const { role } = useRole();
   const { entityId } = useAuthStore();
+  const { selectedChildId } = useParentChildStore();
   const [classSectionId, setClassSectionId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState<Record<string, string>>({});
 
   const isTeacher = role === 'teacher' || role === 'admin';
   const isViewer = role === 'student' || role === 'parent';
+  const viewerStudentId = role === 'parent' ? selectedChildId : entityId;
 
   const { data: sectionsData } = useQuery({
     queryKey: ['class-sections'],
@@ -39,9 +43,9 @@ export default function AttendanceScreen() {
   });
 
   const { data: historyData, isLoading: histLoading } = useQuery({
-    queryKey: ['att-history', entityId],
-    queryFn: () => getAttendanceHistory({ student_id: entityId, limit: 30 }),
-    enabled: isViewer && !!entityId,
+    queryKey: ['att-history', viewerStudentId],
+    queryFn: () => getAttendanceHistory({ student_id: viewerStudentId, limit: 30 }),
+    enabled: isViewer && !!viewerStudentId,
   });
 
   const students: Student[] = studentsData ?? [];
@@ -60,8 +64,11 @@ export default function AttendanceScreen() {
   if (isViewer) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+        {role === 'parent' && <ChildSelector />}
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 4 }}>My Attendance</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+            {role === 'parent' ? "Child's Attendance" : 'My Attendance'}
+          </Text>
           {histLoading ? <Spinner /> : history.map((r: { date: string; status: string }, i: number) => (
             <Card key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ fontSize: 13, color: '#4b5563' }}>{r.date}</Text>

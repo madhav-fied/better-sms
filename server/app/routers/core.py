@@ -217,7 +217,7 @@ async def list_class_sections(
     school_id: str = Query(None),
     academic_year_id: str = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):

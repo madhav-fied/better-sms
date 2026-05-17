@@ -12,5 +12,8 @@ export const getTimetable = (params?: Record<string, unknown>) =>
 export const saveTimetable = (data: unknown) =>
   apiClient.post('/timetable', data).then((r) => r.data);
 
+export const updateTimetable = (id: string, data: unknown) =>
+  apiClient.put(`/timetable/${id}`, data).then((r) => r.data);
+
 export const publishTimetable = (id: string) =>
   apiClient.post(`/timetable/${id}/publish`).then((r) => r.data);

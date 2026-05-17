@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { Tabs, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth';
+import { useParentChildStore } from '../../store/parentChild';
 import { getMe } from '../../lib/api/auth';
+import { getMyChildren } from '../../lib/api/parent';
 import { useRole } from '../../hooks/useRole';
 import { Role } from '../../types/auth';
 
@@ -27,6 +29,7 @@ const ALL_TABS: TabDef[] = [
 export default function AppLayout() {
   const { token, setSession, clearSession } = useAuthStore();
   const { role } = useRole();
+  const { setChildren } = useParentChildStore();
 
   useEffect(() => {
     if (!token) { router.replace('/(auth)/login'); return; }
@@ -41,6 +44,11 @@ export default function AppLayout() {
           entityId: d.entity_id,
           expiresAt: d.expires_at,
         });
+        if (d.role === 'parent') {
+          getMyChildren(d.id)
+            .then((r) => setChildren(r.data ?? []))
+            .catch(() => {});
+        }
       })
       .catch(() => { clearSession(); router.replace('/(auth)/login'); });
   }, []);

@@ -37,14 +37,15 @@ async def create_staff(
     staff = Staff(school_id=school_id, **data)
     db.add(staff)
     await db.flush()
-    await db.refresh(staff)
+    res = await db.execute(select(Staff).options(selectinload(Staff.job_detail)).where(Staff.id == staff.id))
+    staff = res.scalar_one()
     return ok(StaffOut.model_validate(staff).model_dump())
 
 
 @router.get("/staff", response_model=Response)
 async def list_staff(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     search: str = Query(None),          # name / emp_code / mobile / email
     name: str = Query(None),            # kept for backward compat; same as search
     category: str = Query(None),
@@ -83,7 +84,7 @@ async def list_staff(
         q = q.where(Staff.teaching_type == teaching_type)
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit
-    items = (await db.execute(q.order_by(Staff.created_at.desc()).offset(offset).limit(limit))).scalars().all()
+    items = (await db.execute(q.options(selectinload(Staff.job_detail)).order_by(Staff.created_at.desc()).offset(offset).limit(limit))).scalars().all()
     return ok([StaffOut.model_validate(s).model_dump() for s in items], meta={"page": page, "limit": limit, "total": total})
 
 
@@ -115,7 +116,8 @@ async def update_staff(
     for k, v in body.model_dump(exclude_none=True).items():
         setattr(staff, k, v)
     await db.flush()
-    await db.refresh(staff)
+    res = await db.execute(select(Staff).options(selectinload(Staff.job_detail)).where(Staff.id == staff_id))
+    staff = res.scalar_one()
     return ok(StaffOut.model_validate(staff).model_dump())
 
 
@@ -132,7 +134,8 @@ async def toggle_staff_status(
         raise HTTPException(status_code=404, detail="Staff not found")
     staff.status = "inactive" if staff.status == "active" else "active"
     await db.flush()
-    await db.refresh(staff)
+    res = await db.execute(select(Staff).options(selectinload(Staff.job_detail)).where(Staff.id == staff_id))
+    staff = res.scalar_one()
     return ok(StaffOut.model_validate(staff).model_dump())
 
 

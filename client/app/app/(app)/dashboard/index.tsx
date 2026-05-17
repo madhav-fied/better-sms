@@ -3,14 +3,17 @@ import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRole } from '../../../hooks/useRole';
 import { useAuthStore } from '../../../store/auth';
+import { useParentChildStore } from '../../../store/parentChild';
 import apiClient from '../../../lib/api/client';
 import { Card } from '../../../components/ui/Card';
+import { ChildSelector } from '../../../components/ChildSelector';
 import { Spinner } from '../../../components/ui/Spinner';
 import { ROLE_LABELS } from '../../../constants/roles';
 
 export default function DashboardScreen() {
   const { role } = useRole();
   const { userId } = useAuthStore();
+  const { selectedChildId, selectedChild } = useParentChildStore();
 
   const summary = useQuery({
     queryKey: ['dashboard-summary'],
@@ -28,6 +31,12 @@ export default function DashboardScreen() {
     queryKey: ['student-dashboard', userId],
     queryFn: () => apiClient.get(`/students/${userId}/summary`).then((r) => r.data?.data),
     enabled: role === 'student',
+  });
+
+  const parentChildInfo = useQuery({
+    queryKey: ['parent-child-dashboard', selectedChildId],
+    queryFn: () => apiClient.get(`/students/${selectedChildId}`).then((r) => r.data?.data),
+    enabled: role === 'parent' && !!selectedChildId,
   });
 
   return (
@@ -102,10 +111,23 @@ export default function DashboardScreen() {
         )}
 
         {role === 'parent' && (
-          <Card>
-            <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 4 }}>Overview</Text>
-            <Text style={{ color: '#4b5563', fontSize: 13 }}>View your child's attendance, results, and homework in the tabs below.</Text>
-          </Card>
+          <>
+            <ChildSelector />
+            {selectedChild && (
+              <Card>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 4 }}>
+                  {selectedChild.first_name} {selectedChild.last_name ?? ''}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                  {selectedChild.class_name ? `${selectedChild.class_name}${selectedChild.section ? ' ' + selectedChild.section : ''}` : 'No class assigned'}
+                </Text>
+              </Card>
+            )}
+            {parentChildInfo.isLoading ? <Spinner size="small" /> : null}
+            <Card>
+              <Text style={{ fontSize: 13, color: '#4b5563' }}>View your child's attendance, results, and homework in the tabs below.</Text>
+            </Card>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>

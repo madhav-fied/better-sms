@@ -21,6 +21,11 @@ export const updateEnquiryStatus = (id: string, status: string) =>
 export const updateRegistrationStatus = (id: string, status: string) =>
   apiClient.patch(`/registrations/${id}/status`, { status }).then((r) => r.data);
 
+export const createRegistration = (data: {
+  student_fields: Record<string, unknown>;
+  parent_guardians?: Array<{ relation: string; first_name: string; name?: string; phone?: string }>;
+}) => apiClient.post('/registrations', data).then((r) => r.data);
+
 export const getRegistrations = (params?: Record<string, unknown>) =>
   apiClient.get('/registrations', { params }).then((r) => r.data);
 

@@ -1,7 +1,7 @@
 from datetime import date
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update as sa_update
 
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
@@ -373,4 +373,12 @@ async def admit_student(
     db.add(student)
     await db.flush()
     await db.refresh(student)
+
+    # Link parent_guardian rows from the registration to this student
+    await db.execute(
+        sa_update(ParentGuardian)
+        .where(ParentGuardian.registration_id == reg.id, ParentGuardian.student_id.is_(None))
+        .values(student_id=student.id)
+    )
+
     return ok(StudentOut.model_validate(student).model_dump())

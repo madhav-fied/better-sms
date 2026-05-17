@@ -69,7 +69,9 @@ class ParentGuardianCreate(BaseModel):
 
 class ParentGuardianOut(BaseModel):
     id: str
-    registration_id: str
+    registration_id: Optional[str] = None
+    student_id: Optional[str] = None
+    parent_id: Optional[str] = None
     relation: str
     name: Optional[str] = None
     first_name: Optional[str] = None

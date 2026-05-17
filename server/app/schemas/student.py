@@ -3,11 +3,12 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.models.student import StudentGender, AdmissionType, FeeType
+from app.schemas.admission import ParentGuardianCreate, ParentGuardianOut
 
 
 class StudentCreate(BaseModel):
     first_name: str
-    last_name: str
+    last_name: str = ''
     gender: StudentGender
     class_section_id: Optional[str] = None
     academic_year_id: Optional[str] = None
@@ -52,6 +53,7 @@ class StudentCreate(BaseModel):
     admission_type: str = "regular"
     has_sibling: bool = False
     sibling_student_id: Optional[str] = None
+    parent_guardians: Optional[List[ParentGuardianCreate]] = None
 
 
 class StudentUpdate(BaseModel):
@@ -160,5 +162,6 @@ class StudentOut(BaseModel):
     has_sibling: bool = False
     sibling_student_id: Optional[str] = None
     created_at: datetime
+    parent_guardians: List[ParentGuardianOut] = []
 
     model_config = {"from_attributes": True}

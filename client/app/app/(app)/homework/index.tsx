@@ -2,19 +2,35 @@ import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useRole } from '../../../hooks/useRole';
+import { useParentChildStore } from '../../../store/parentChild';
 import { getHomework } from '../../../lib/api/homework';
 import { Card } from '../../../components/ui/Card';
+import { ChildSelector } from '../../../components/ChildSelector';
 import { Spinner } from '../../../components/ui/Spinner';
 import { EmptyState } from '../../../components/ui/EmptyState';
 
 export default function HomeworkScreen() {
-  const { data, isLoading } = useQuery({ queryKey: ['homework'], queryFn: () => getHomework({ limit: 20 }) });
+  const { role } = useRole();
+  const { selectedChild } = useParentChildStore();
+  const isParent = role === 'parent';
+
+  const params: Record<string, unknown> = { limit: 20 };
+  if (isParent && selectedChild?.class_section_id) {
+    params.class_section_id = selectedChild.class_section_id;
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['homework', isParent ? selectedChild?.class_section_id : 'all'],
+    queryFn: () => getHomework(params),
+  });
   const items = data?.data ?? [];
 
   if (isLoading) return <Spinner />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+      {isParent && <ChildSelector />}
       <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
         <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 4 }}>Homework</Text>
         {items.length === 0 ? (

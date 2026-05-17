@@ -65,7 +65,9 @@ class ParentGuardian(Base):
     __tablename__ = "parent_guardians"
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    registration_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("registrations.id"), nullable=False)
+    registration_id: Mapped[Optional[str]] = mapped_column(sa.String(36), sa.ForeignKey("registrations.id"), nullable=True)
+    student_id: Mapped[Optional[str]] = mapped_column(sa.String(36), sa.ForeignKey("students.id"), nullable=True)
+    parent_id: Mapped[Optional[str]] = mapped_column(sa.String(36), sa.ForeignKey("parents.id"), nullable=True)
     relation: Mapped[str] = mapped_column(sa.String(30), nullable=False)
     name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     first_name: Mapped[Optional[str]] = mapped_column(sa.String(100), nullable=True)

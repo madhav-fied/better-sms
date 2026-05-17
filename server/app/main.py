@@ -9,6 +9,7 @@ from app.routers import (
     admission,
     student,
     staff,
+    parent,
     document,
     dashboard,
     attendance,
@@ -44,6 +45,7 @@ app.include_router(core.router, prefix=PREFIX, tags=["Core"])
 app.include_router(admission.router, prefix=PREFIX, tags=["Admission"])
 app.include_router(student.router, prefix=PREFIX, tags=["Student"])
 app.include_router(staff.router, prefix=PREFIX, tags=["Staff"])
+app.include_router(parent.router, prefix=PREFIX, tags=["Parents"])
 app.include_router(document.router, prefix=PREFIX, tags=["Documents"])
 app.include_router(dashboard.router, prefix=PREFIX, tags=["Dashboard"])
 app.include_router(attendance.router, prefix=PREFIX, tags=["Attendance"])

@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { getResults, bulkSaveResults, publishResults } from '../../../lib/api/results';
 import { useRole } from '../../../hooks/useRole';
 import { useAuthStore } from '../../../store/auth';
+import { useParentChildStore } from '../../../store/parentChild';
 import apiClient from '../../../lib/api/client';
+import { ChildSelector } from '../../../components/ChildSelector';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -13,7 +15,9 @@ import { Spinner } from '../../../components/ui/Spinner';
 export default function ResultsScreen() {
   const { role } = useRole();
   const { entityId } = useAuthStore();
+  const { selectedChildId } = useParentChildStore();
   const isTeacher = role === 'teacher';
+  const viewerStudentId = role === 'parent' ? selectedChildId : entityId;
 
   const [examId, setExamId] = useState('');
   const [subjectId, setSubjectId] = useState('');
@@ -27,9 +31,9 @@ export default function ResultsScreen() {
   });
 
   const { data: myResults, isLoading } = useQuery({
-    queryKey: ['my-results', entityId],
-    queryFn: () => getResults({ student_id: entityId }),
-    enabled: !isTeacher && !!entityId,
+    queryKey: ['my-results', viewerStudentId],
+    queryFn: () => getResults({ student_id: viewerStudentId }),
+    enabled: !isTeacher && !!viewerStudentId,
   });
 
   const students: { id: string; name?: string; first_name?: string; last_name?: string }[] = studentsData ?? [];
@@ -50,8 +54,11 @@ export default function ResultsScreen() {
     const results = myResults?.data ?? [];
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+        {role === 'parent' && <ChildSelector />}
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 4 }}>My Results</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+            {role === 'parent' ? "Child's Results" : 'My Results'}
+          </Text>
           {isLoading ? <Spinner /> : results.map((r: { id: string; subject_name: string; marks_obtained: number; max_marks: number; exam_name: string; grade?: string }) => (
             <Card key={r.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View>
