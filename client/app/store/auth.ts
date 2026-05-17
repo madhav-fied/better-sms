@@ -34,8 +34,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token: null, role: null, schoolId: null, userId: null, entityId: null, expiresAt: null, hydrated: true });
   },
   hydrate: async () => {
-    const token = await storage.getToken();
-    if (token) set({ token, hydrated: true });
-    else set({ hydrated: true });
+    try {
+      const token = await storage.getToken();
+      if (token) set({ token, hydrated: true });
+      else set({ hydrated: true });
+    } catch {
+      set({ hydrated: true });
+    }
   },
 }));

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { router } from 'expo-router';
 import { useAuthStore } from '../../store/auth';
 import { requestOtp, verifyOtp, getMe } from '../../lib/api/auth';
 import { Input } from '../../components/ui/Input';
@@ -51,7 +50,6 @@ export default function LoginScreen() {
         entityId: me.entity_id,
         expiresAt: me.expires_at,
       });
-      router.replace('/(app)/dashboard');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       Alert.alert('Error', e.response?.data?.error ?? 'Invalid OTP');
