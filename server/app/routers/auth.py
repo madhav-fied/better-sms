@@ -77,6 +77,7 @@ async def request_otp(body: OtpRequestBody, db: AsyncSession = Depends(get_db)):
 
     # Use the single matching user (or first if school_id was provided)
     user = users[0]
+    print(users)
 
     # Generate and store OTP
     otp = generate_otp()
@@ -99,6 +100,7 @@ async def request_otp(body: OtpRequestBody, db: AsyncSession = Depends(get_db)):
 @router.post("/auth/otp/verify", response_model=Response)
 async def verify_otp(body: OtpVerifyBody, db: AsyncSession = Depends(get_db)):
     now = datetime.now(timezone.utc)
+    print(body)
 
     # Find a valid (non-expired, non-used) OTP for this phone+school
     otp_res = await db.execute(
@@ -141,6 +143,7 @@ async def verify_otp(body: OtpVerifyBody, db: AsyncSession = Depends(get_db)):
         )
     )
     school_user = user_res.scalar_one_or_none()
+    print(school_user)
     if not school_user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -213,6 +216,7 @@ async def me(user: CurrentUser, db: AsyncSession = Depends(get_db)):
 
     res = await db.execute(select(SchoolUser).where(SchoolUser.id == user["user_id"]))
     school_user = res.scalar_one_or_none()
+    print(school_user)
     if not school_user:
         raise HTTPException(status_code=404, detail="User not found")
 

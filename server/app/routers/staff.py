@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.staff import Staff, TeacherSubject, StaffJobDetail
+from app.models.auth import SchoolUser, UserRole
 from app.schemas.staff import (
     StaffCreate, StaffUpdate, StaffOut,
     StaffJobDetailCreate, StaffJobDetailOut,
@@ -37,6 +38,8 @@ async def create_staff(
     staff = Staff(school_id=school_id, **data)
     db.add(staff)
     await db.flush()
+    if staff.mobile:
+        db.add(SchoolUser(school_id=school_id, role=UserRole.staff, phone=staff.mobile, entity_id=staff.id))
     res = await db.execute(select(Staff).options(selectinload(Staff.job_detail)).where(Staff.id == staff.id))
     staff = res.scalar_one()
     return ok(StaffOut.model_validate(staff).model_dump())

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getStudent, updateStudent } from '@/lib/api/students';
+import { getStudent, updateStudent, addParentGuardian, deleteParentGuardian } from '@/lib/api/students';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
 import { ClassSectionPicker } from '@/components/shared/ClassSectionPicker';
 import { use } from 'react';
 import { toast } from 'sonner';
-import { Student } from '@/types/student';
+import { Student, ParentGuardian } from '@/types/student';
 
 // ── Shared primitives (same as students/page.tsx) ────────────────────────────
 
@@ -83,8 +83,22 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 // ── Edit modal tabs ──────────────────────────────────────────────────────────
 
-const TABS = ['Personal', 'Academic', 'Address', 'Prev. School', 'Other'] as const;
+const TABS = ['Personal', 'Academic', 'Address', 'Prev. School', 'Parents', 'Other'] as const;
 type Tab = typeof TABS[number];
+
+type ParentForm = {
+  relation: 'father' | 'mother' | 'guardian';
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string;
+  occupation: string;
+  is_primary: boolean;
+};
+const PARENT_INIT: ParentForm = {
+  relation: 'father', first_name: '', last_name: '',
+  phone: '', email: '', occupation: '', is_primary: false,
+};
 
 function studentToForm(s: Student) {
   return {
@@ -145,9 +159,17 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('Personal');
   const [form, setForm] = useState<FormState | null>(null);
+  const [editExistingPGs, setEditExistingPGs] = useState<ParentGuardian[]>([]);
+  const [editNewPGs, setEditNewPGs] = useState<ParentForm[]>([]);
 
   const openEdit = () => {
-    if (s) { setForm(studentToForm(s)); setTab('Personal'); setEditOpen(true); }
+    if (s) {
+      setForm(studentToForm(s));
+      setTab('Personal');
+      setEditExistingPGs(s.parent_guardians ?? []);
+      setEditNewPGs([]);
+      setEditOpen(true);
+    }
   };
 
   const setFm = <K extends keyof FormState>(k: K, v: FormState[K]) =>
@@ -161,9 +183,9 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   });
 
   const editMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!form) throw new Error('No form');
-      return updateStudent(id, {
+      const result = await updateStudent(id, {
         first_name: form.first_name,
         last_name: form.last_name || undefined,
         gender: form.gender,
@@ -208,11 +230,30 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         has_sibling: form.has_sibling,
         fee_concession: form.fee_concession || undefined,
       });
+      const deletedPGIds = (s?.parent_guardians ?? [])
+        .filter((pg) => !editExistingPGs.find((epg) => epg.id === pg.id))
+        .map((pg) => pg.id);
+      await Promise.all([
+        ...deletedPGIds.map((pgId) => deleteParentGuardian(id, pgId)),
+        ...editNewPGs
+          .filter((pg) => pg.first_name.trim())
+          .map((pg) => addParentGuardian(id, {
+            relation: pg.relation,
+            first_name: pg.first_name,
+            last_name: pg.last_name || undefined,
+            phone: pg.phone || undefined,
+            email: pg.email || undefined,
+            occupation: pg.occupation || undefined,
+            is_primary: pg.is_primary,
+          })),
+      ]);
+      return result;
     },
     onSuccess: () => {
       toast.success('Student updated');
       qc.invalidateQueries({ queryKey: ['student', id] });
       setEditOpen(false);
+      setEditNewPGs([]);
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { error?: string } } };
@@ -301,6 +342,29 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           <Row label="Relieving Date" value={s.relieving_date} />
           <Row label="Class Promoted" value={s.class_promoted_date} />
         </Card>
+
+        {(s.parent_guardians?.length ?? 0) > 0 && (
+          <div className="col-span-2">
+            <Card title="Parents / Guardians">
+              <div className="grid grid-cols-2 gap-4 mt-1">
+                {s.parent_guardians!.map((pg) => (
+                  <div key={pg.id} className="rounded-lg border bg-muted/20 p-3 space-y-1.5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-semibold capitalize">{pg.relation}</span>
+                      {pg.is_primary && (
+                        <Badge variant="secondary" className="text-[10px] py-0">Primary</Badge>
+                      )}
+                    </div>
+                    <Row label="Name" value={[pg.first_name, pg.last_name].filter(Boolean).join(' ') || pg.name} />
+                    <Row label="Phone" value={pg.phone} />
+                    <Row label="Email" value={pg.email} />
+                    <Row label="Occupation" value={pg.occupation} />
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* ── Edit modal ── */}
@@ -504,6 +568,156 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                   </div>
                 </Section>
+              )}
+
+              {tab === 'Parents' && (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      Remove existing parents or add new ones. Changes take effect when you save.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditNewPGs((p) => [...p, { ...PARENT_INIT }])}
+                    >
+                      + Add Parent
+                    </Button>
+                  </div>
+
+                  {editExistingPGs.length === 0 && editNewPGs.length === 0 && (
+                    <div className="rounded-xl border-2 border-dashed border-border py-14 text-center text-sm text-muted-foreground">
+                      No parents recorded. Click &ldquo;+ Add Parent&rdquo; to add one.
+                    </div>
+                  )}
+
+                  {editExistingPGs.map((pg) => (
+                    <div key={pg.id} className="rounded-xl border bg-muted/20 p-5 space-y-3 relative">
+                      <button
+                        onClick={() => setEditExistingPGs((prev) => prev.filter((p) => p.id !== pg.id))}
+                        className="absolute top-3 right-4 text-muted-foreground hover:text-destructive text-lg leading-none"
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                      <div className="grid grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Relation</p>
+                          <p className="text-sm capitalize mt-1">{pg.relation}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Name</p>
+                          <p className="text-sm mt-1">{[pg.first_name, pg.last_name].filter(Boolean).join(' ') || pg.name || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Phone</p>
+                          <p className="text-sm mt-1">{pg.phone ?? '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Email</p>
+                          <p className="text-sm mt-1">{pg.email ?? '—'}</p>
+                        </div>
+                      </div>
+                      {(pg.occupation || pg.is_primary) && (
+                        <div className="flex items-center gap-6">
+                          {pg.occupation && (
+                            <div>
+                              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Occupation</p>
+                              <p className="text-sm mt-1">{pg.occupation}</p>
+                            </div>
+                          )}
+                          {pg.is_primary && (
+                            <Badge variant="secondary" className="text-[10px] mt-3">Primary Contact</Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {editNewPGs.map((pg, i) => (
+                    <div key={`new-${i}`} className="rounded-xl border border-dashed bg-muted/10 p-5 space-y-4 relative">
+                      <span className="absolute top-3 left-5 text-[10px] text-primary font-semibold uppercase tracking-wide">New</span>
+                      <button
+                        onClick={() => setEditNewPGs((p) => p.filter((_, j) => j !== i))}
+                        className="absolute top-3 right-4 text-muted-foreground hover:text-destructive text-lg leading-none"
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                      <div className="grid grid-cols-4 gap-4 mt-4">
+                        <F label="Relation" required>
+                          <select
+                            className={SELECT}
+                            value={pg.relation}
+                            onChange={(e) => setEditNewPGs((p) => p.map((r, j) => j === i ? { ...r, relation: e.target.value as ParentForm['relation'] } : r))}
+                          >
+                            <option value="father">Father</option>
+                            <option value="mother">Mother</option>
+                            <option value="guardian">Guardian</option>
+                          </select>
+                        </F>
+                        <F label="First Name" required>
+                          <Input
+                            className="h-10"
+                            value={pg.first_name}
+                            onChange={(e) => setEditNewPGs((p) => p.map((r, j) => j === i ? { ...r, first_name: e.target.value } : r))}
+                            placeholder="First name"
+                          />
+                        </F>
+                        <F label="Last Name">
+                          <Input
+                            className="h-10"
+                            value={pg.last_name}
+                            onChange={(e) => setEditNewPGs((p) => p.map((r, j) => j === i ? { ...r, last_name: e.target.value } : r))}
+                            placeholder="Last name"
+                          />
+                        </F>
+                        <F label="Phone">
+                          <Input
+                            className="h-10"
+                            value={pg.phone}
+                            onChange={(e) => setEditNewPGs((p) => p.map((r, j) => j === i ? { ...r, phone: e.target.value } : r))}
+                            placeholder="+91 98765 43210"
+                          />
+                        </F>
+                      </div>
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                          <F label="Email">
+                            <Input
+                              type="email"
+                              className="h-10"
+                              value={pg.email}
+                              onChange={(e) => setEditNewPGs((p) => p.map((r, j) => j === i ? { ...r, email: e.target.value } : r))}
+                              placeholder="parent@example.com"
+                            />
+                          </F>
+                        </div>
+                        <F label="Occupation">
+                          <Input
+                            className="h-10"
+                            value={pg.occupation}
+                            onChange={(e) => setEditNewPGs((p) => p.map((r, j) => j === i ? { ...r, occupation: e.target.value } : r))}
+                            placeholder="e.g. Engineer"
+                          />
+                        </F>
+                        <F label="Primary Contact">
+                          <div className="h-10 flex items-center">
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={pg.is_primary}
+                                onChange={(e) => setEditNewPGs((p) => p.map((r, j) => j === i ? { ...r, is_primary: e.target.checked } : r))}
+                                className="h-4 w-4 rounded border-input accent-primary"
+                              />
+                              <span className="text-sm text-muted-foreground">Mark as primary</span>
+                            </label>
+                          </div>
+                        </F>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {tab === 'Other' && (

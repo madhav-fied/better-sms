@@ -1,3 +1,25 @@
+export interface ParentGuardian {
+  id: string;
+  student_id?: string;
+  parent_id?: string;
+  relation: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  email?: string;
+  occupation?: string;
+  is_primary: boolean;
+  qualification?: string;
+  aadhar_no?: string;
+  dob?: string;
+  address?: string;
+  guardian_relation?: string;
+  alternate_mobile?: string;
+  alternate_email?: string;
+  emergency_mobile?: string;
+}
+
 export interface Student {
   id: string;
   school_id: string;
@@ -54,6 +76,7 @@ export interface Student {
   has_sibling: boolean;
   sibling_student_id?: string;
   created_at: string;
+  parent_guardians?: ParentGuardian[];
 }
 
 export interface ClassSection {

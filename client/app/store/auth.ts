@@ -7,6 +7,8 @@ interface AuthState {
   token: string | null;
   role: Role | null;
   schoolId: string | null;
+  schoolName: string | null;
+  schoolBranchName: string | null;
   userId: string | null;
   entityId: string | null;
   expiresAt: string | null;
@@ -20,6 +22,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   role: null,
   schoolId: null,
+  schoolName: null,
+  schoolBranchName: null,
   userId: null,
   entityId: null,
   expiresAt: null,
@@ -31,7 +35,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearSession: async () => {
     await storage.clearToken();
     queryClient.clear();
-    set({ token: null, role: null, schoolId: null, userId: null, entityId: null, expiresAt: null, hydrated: true });
+    set({ token: null, role: null, schoolId: null, schoolName: null, schoolBranchName: null, userId: null, entityId: null, expiresAt: null, hydrated: true });
   },
   hydrate: async () => {
     try {

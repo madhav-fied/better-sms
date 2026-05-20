@@ -12,5 +12,14 @@ export const createStudent = (data: unknown) =>
 export const updateStudent = (id: string, data: unknown) =>
   apiClient.put(`/students/${id}`, data).then((r) => r.data);
 
+export const addParentGuardian = (studentId: string, data: unknown) =>
+  apiClient.post(`/students/${studentId}/parent-guardians`, data).then((r) => r.data);
+
+export const updateParentGuardian = (studentId: string, pgId: string, data: unknown) =>
+  apiClient.put(`/students/${studentId}/parent-guardians/${pgId}`, data).then((r) => r.data);
+
+export const deleteParentGuardian = (studentId: string, pgId: string) =>
+  apiClient.delete(`/students/${studentId}/parent-guardians/${pgId}`).then((r) => r.data);
+
 export const getClassSections = (params?: Record<string, unknown>) =>
   apiClient.get('/class-sections', { params }).then((r) => r.data);

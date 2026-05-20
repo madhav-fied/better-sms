@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { useAuthStore } from '../../store/auth';
-import { requestOtp, verifyOtp, getMe } from '../../lib/api/auth';
+import { requestOtp, verifyOtp } from '../../lib/api/auth';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,16 +21,32 @@ export default function LoginScreen() {
   const sendOtp = async () => {
     setLoading(true);
     try {
-      await requestOtp(phone, schoolId || undefined);
-      setStep('otp');
-    } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { data?: { schools?: School[] }; error?: string } } };
-      if (e.response?.status === 409) {
-        setSchools(e.response.data?.data?.schools ?? []);
+      const res = await requestOtp(phone, schoolId || undefined);
+      if (res.meta?.requires_school_id) {
+        const list = (res.meta.schools ?? []).map((s: { school_id: string; school_name: string }) => ({ id: s.school_id, name: s.school_name }));
+        setSchools(list);
         setStep('school');
       } else {
-        Alert.alert('Error', e.response?.data?.error ?? 'Failed to send OTP');
+        if (res.data?.school_id) setSchoolId(res.data.school_id);
+        setStep('otp');
       }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      Alert.alert('Error', e.response?.data?.error ?? 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmSchool = async () => {
+    if (!schoolId) return;
+    setLoading(true);
+    try {
+      await requestOtp(phone, schoolId);
+      setStep('otp');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      Alert.alert('Error', e.response?.data?.error ?? 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -38,18 +55,19 @@ export default function LoginScreen() {
   const verify = async () => {
     setLoading(true);
     try {
-      const res = await verifyOtp(phone, otp, schoolId);
+      const res = await verifyOtp(phone, otp, schoolId || undefined);
       const d = res.data;
-      const meRes = await getMe();
-      const me = meRes.data;
       setSession({
         token: d.token,
-        role: me.role,
-        schoolId: me.school_id,
-        userId: me.id,
-        entityId: me.entity_id,
-        expiresAt: me.expires_at,
+        role: d.role,
+        schoolId: d.school_id,
+        schoolName: d.school_name ?? null,
+        schoolBranchName: d.school_branch_name ?? null,
+        userId: d.user_id,
+        entityId: d.entity_id,
+        expiresAt: d.expires_at,
       });
+      router.replace('/(app)/dashboard');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       Alert.alert('Error', e.response?.data?.error ?? 'Invalid OTP');
@@ -100,7 +118,7 @@ export default function LoginScreen() {
                 title={loading ? 'Sending OTP…' : 'Continue'}
                 loading={loading}
                 disabled={!schoolId}
-                onPress={sendOtp}
+                onPress={confirmSchool}
               />
               <TouchableOpacity onPress={() => { setStep('phone'); setSchools([]); setSchoolId(''); }}>
                 <Text style={{ textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Change phone number</Text>

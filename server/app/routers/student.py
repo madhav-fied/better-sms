@@ -8,13 +8,30 @@ from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.student import Student
 from app.models.admission import ParentGuardian
-from app.models.auth import SchoolUser
+from app.models.auth import SchoolUser, UserRole
+from app.models.parent import Parent
 from app.models.core import AcademicYear, ClassSection
 from app.schemas.student import StudentCreate, StudentUpdate, StudentOut
 from app.schemas.admission import ParentGuardianCreate, ParentGuardianOut
 from app.schemas.common import Response, ok
 
 router = APIRouter()
+
+
+async def _provision_parent_login(db: AsyncSession, school_id: str, pg_dict: dict) -> str | None:
+    phone = pg_dict.get("phone")
+    if not phone:
+        return None
+    parent = Parent(
+        school_id=school_id,
+        name=pg_dict.get("name") or f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip(),
+        phone=phone,
+        email=pg_dict.get("email"),
+    )
+    db.add(parent)
+    await db.flush()
+    db.add(SchoolUser(school_id=school_id, role=UserRole.parent, phone=phone, entity_id=parent.id))
+    return parent.id
 
 
 async def _build_responses(db: AsyncSession, students: list[Student]) -> list[dict]:
@@ -98,6 +115,9 @@ async def create_student(
         pg_dict = pg_data if isinstance(pg_data, dict) else pg_data.model_dump(exclude_none=True)
         if not pg_dict.get("name"):
             pg_dict["name"] = f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip()
+        parent_id = await _provision_parent_login(db, school_id, pg_dict)
+        if parent_id:
+            pg_dict["parent_id"] = parent_id
         pg = ParentGuardian(id=str(uuid.uuid4()), student_id=student.id, **pg_dict)
         db.add(pg)
 
@@ -265,6 +285,9 @@ async def add_parent_guardian(
     pg_dict = body.model_dump(exclude_none=True)
     if not pg_dict.get("name"):
         pg_dict["name"] = f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip()
+    parent_id = await _provision_parent_login(db, user["school_id"], pg_dict)
+    if parent_id:
+        pg_dict["parent_id"] = parent_id
     pg = ParentGuardian(id=str(uuid.uuid4()), student_id=student_id, **pg_dict)
     db.add(pg)
     await db.flush()
