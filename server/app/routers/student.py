@@ -1,6 +1,8 @@
 import uuid
 from datetime import date
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, update as sa_update
 
@@ -14,14 +16,16 @@ from app.models.core import AcademicYear, ClassSection
 from app.schemas.student import StudentCreate, StudentUpdate, StudentOut
 from app.schemas.admission import ParentGuardianCreate, ParentGuardianOut
 from app.schemas.common import Response, ok
+from app.utils import normalize_phone
 
 router = APIRouter()
 
 
 async def _provision_parent_login(db: AsyncSession, school_id: str, pg_dict: dict) -> str | None:
-    phone = pg_dict.get("phone")
-    if not phone:
+    raw_phone = pg_dict.get("phone")
+    if not raw_phone:
         return None
+    phone = normalize_phone(raw_phone)
     parent = Parent(
         school_id=school_id,
         name=pg_dict.get("name") or f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip(),
@@ -129,7 +133,7 @@ async def create_student(
 @router.get("/students", response_model=Response)
 async def list_students(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     search: str = Query(None),
     admission_no: str = Query(None),
     mobile: str = Query(None),
@@ -148,6 +152,8 @@ async def list_students(
     dob_from: date = Query(None),
     dob_to: date = Query(None),
     parent_id: str = Query(None),
+    not_class_section_id: str = Query(None),
+    unassigned: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
@@ -212,6 +218,12 @@ async def list_students(
         q = q.where(Student.dob >= dob_from)
     if dob_to:
         q = q.where(Student.dob <= dob_to)
+    if not_class_section_id:
+        q = q.where(
+            (Student.class_section_id != not_class_section_id) | Student.class_section_id.is_(None)
+        )
+    if unassigned:
+        q = q.where(Student.class_section_id.is_(None))
 
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit
@@ -221,12 +233,144 @@ async def list_students(
     return ok(rows, meta={"page": page, "limit": limit, "total": total})
 
 
+class ChangeSectionBody(BaseModel):
+    student_ids: List[str]
+    to_class_section_id: str
+
+
+class MigrateBody(BaseModel):
+    student_ids: List[str]
+    from_academic_year_id: str
+    to_academic_year_id: str
+    to_class_section_id: str
+    promote_date: Optional[date] = None
+
+
+@router.post("/students/change-class-section", response_model=Response)
+async def change_class_section(
+    body: ChangeSectionBody,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if not body.student_ids:
+        raise HTTPException(422, "student_ids required")
+    if len(body.student_ids) > 500:
+        raise HTTPException(422, "Max 500 student IDs")
+
+    school_id = user["school_id"]
+
+    cs_res = await db.execute(
+        select(ClassSection).where(
+            ClassSection.id == body.to_class_section_id,
+            ClassSection.school_id == school_id,
+        )
+    )
+    cs = cs_res.scalar_one_or_none()
+    if not cs:
+        raise HTTPException(404, "Target class section not found")
+
+    await db.execute(
+        sa_update(Student)
+        .where(Student.id.in_(body.student_ids), Student.school_id == school_id)
+        .values(class_section_id=body.to_class_section_id, academic_year_id=cs.academic_year_id)
+    )
+    return ok({"updated": len(body.student_ids)})
+
+
+@router.post("/students/migrate", response_model=Response)
+async def migrate_students(
+    body: MigrateBody,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if not body.student_ids:
+        raise HTTPException(422, "student_ids required")
+    if len(body.student_ids) > 500:
+        raise HTTPException(422, "Max 500 student IDs")
+
+    from datetime import date as date_type
+
+    school_id = user["school_id"]
+    promote_date = body.promote_date or date_type.today()
+
+    cs_res = await db.execute(
+        select(ClassSection).where(
+            ClassSection.id == body.to_class_section_id,
+            ClassSection.school_id == school_id,
+        )
+    )
+    cs = cs_res.scalar_one_or_none()
+    if not cs:
+        raise HTTPException(404, "Target class section not found")
+
+    ay_res = await db.execute(
+        select(AcademicYear).where(
+            AcademicYear.id == body.to_academic_year_id,
+            AcademicYear.school_id == school_id,
+        )
+    )
+    if not ay_res.scalar_one_or_none():
+        raise HTTPException(404, "Target academic year not found")
+
+    students_res = await db.execute(
+        select(Student).where(
+            Student.id.in_(body.student_ids),
+            Student.school_id == school_id,
+        )
+    )
+    student_map = {s.id: s for s in students_res.scalars().all()}
+
+    migrated = 0
+    skipped = 0
+    errors = []
+    warnings = []
+
+    for sid in body.student_ids:
+        student = student_map.get(sid)
+        if not student:
+            errors.append({"student_id": sid, "reason": "student_not_found"})
+            continue
+        if student.academic_year_id != body.from_academic_year_id:
+            errors.append({"student_id": sid, "reason": "not_in_source_ay"})
+            continue
+        if (
+            student.class_section_id == body.to_class_section_id
+            and student.academic_year_id == body.to_academic_year_id
+        ):
+            skipped += 1
+            continue
+        if student.tc_generated:
+            warnings.append({"student_id": sid, "warning": "tc_generated"})
+        student.class_section_id = body.to_class_section_id
+        student.academic_year_id = body.to_academic_year_id
+        student.student_type = "old"
+        student.class_promoted_date = promote_date
+        migrated += 1
+
+    await db.flush()
+    return ok({"migrated": migrated, "skipped": skipped, "errors": errors, "warnings": warnings})
+
+
 @router.get("/students/{student_id}", response_model=Response)
 async def get_student(student_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     res = await db.execute(select(Student).where(Student.id == student_id, Student.school_id == user["school_id"]))
     student = res.scalar_one_or_none()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
+    if user["role"] == "parent":
+        entity_id = user.get("entity_id")
+        if not entity_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        pg_check = await db.execute(
+            select(ParentGuardian).where(
+                ParentGuardian.parent_id == entity_id,
+                ParentGuardian.student_id == student_id,
+            )
+        )
+        if not pg_check.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Access denied")
     rows = await _build_responses(db, [student])
     return ok(rows[0])
 

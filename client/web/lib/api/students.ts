@@ -23,3 +23,14 @@ export const deleteParentGuardian = (studentId: string, pgId: string) =>
 
 export const getClassSections = (params?: Record<string, unknown>) =>
   apiClient.get('/class-sections', { params }).then((r) => r.data);
+
+export const changeClassSection = (data: { student_ids: string[]; to_class_section_id: string }) =>
+  apiClient.post('/students/change-class-section', data).then((r) => r.data);
+
+export const migrateStudents = (data: {
+  student_ids: string[];
+  from_academic_year_id: string;
+  to_academic_year_id: string;
+  to_class_section_id: string;
+  promote_date?: string;
+}) => apiClient.post('/students/migrate', data).then((r) => r.data);

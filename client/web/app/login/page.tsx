@@ -32,12 +32,22 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
 
+  const normalizePhone = (p: string) => {
+    const t = p.trim();
+    if (t.startsWith('+')) return t;
+    if (t.startsWith('91') && t.length === 12) return '+' + t;
+    if (t.length === 10 && /^\d+$/.test(t)) return '+91' + t;
+    return t;
+  };
+
   // ── OTP helpers ──────────────────────────────────────────────────────────────
 
   const sendOtp = async () => {
+    const normalized = normalizePhone(phone);
+    if (normalized !== phone) setPhone(normalized);
     setLoading(true);
     try {
-      const res = await requestOtp(phone, schoolId || undefined);
+      const res = await requestOtp(normalized, schoolId || undefined);
       if (res.meta?.requires_school_id) {
         const list = (res.meta.schools ?? []).map((s: { school_id: string; school_name: string }) => ({ id: s.school_id, name: s.school_name }));
         setSchools(list);
@@ -58,7 +68,7 @@ export default function LoginPage() {
     if (!schoolId) return;
     setLoading(true);
     try {
-      await requestOtp(phone, schoolId);
+      await requestOtp(normalizePhone(phone), schoolId);
       setStep('otp');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -71,7 +81,7 @@ export default function LoginPage() {
   const verify = async () => {
     setLoading(true);
     try {
-      const res = await verifyOtp(phone, otp, schoolId || undefined);
+      const res = await verifyOtp(normalizePhone(phone), otp, schoolId || undefined);
       const d = res.data;
       setSession({
         token: d.token,

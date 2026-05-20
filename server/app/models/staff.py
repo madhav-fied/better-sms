@@ -110,10 +110,16 @@ class Staff(Base):
 
 class TeacherSubject(Base):
     __tablename__ = "teacher_subjects"
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "school_id", "class_section_id", "subject", "academic_year_id",
+            name="uq_teacher_subjects_class_subject_ay",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     school_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("schools.id"), nullable=False)
-    staff_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("staff.id"), nullable=False)
+    staff_id: Mapped[Optional[str]] = mapped_column(sa.String(36), sa.ForeignKey("staff.id"), nullable=True)
     subject: Mapped[str] = mapped_column(sa.String(100), nullable=False)
     class_section_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("class_sections.id"), nullable=False)
     academic_year_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("academic_years.id"), nullable=False)

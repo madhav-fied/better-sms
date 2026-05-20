@@ -6,7 +6,9 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
+from app.models.core import ClassSection
 from app.models.result import Result
+from app.models.staff import TeacherSubject
 from app.models.student import Student
 from app.schemas.result import ResultBulkIn, ResultPublishIn, ResultUpdate, ResultOut
 from app.schemas.common import Response, ok
@@ -14,6 +16,38 @@ from app.schemas.common import Response, ok
 router = APIRouter()
 
 # IMPORTANT: bulk/publish/unpublish/marksheet/class-summary MUST come before /{id}
+
+
+async def _check_teacher_subject_access(db: AsyncSession, user: dict, class_section_id: str, subject: str) -> None:
+    """Raises 403/404 if a teacher is not assigned to this subject in this class. Admins bypass."""
+    role = user["role"]
+    if role in ("admin", "superadmin"):
+        return
+    if role != "teacher":
+        raise HTTPException(403, "Access denied")
+    entity_id = user["entity_id"]
+    # Class teacher has full access to any subject in their class
+    cs_res = await db.execute(
+        select(ClassSection).where(
+            ClassSection.id == class_section_id,
+            ClassSection.school_id == user["school_id"],
+        )
+    )
+    cs = cs_res.scalar_one_or_none()
+    if not cs:
+        raise HTTPException(404, "Class section not found")
+    if cs.class_teacher_id == entity_id:
+        return
+    # Subject-assigned teacher must match the exact subject
+    ts_res = await db.execute(
+        select(TeacherSubject).where(
+            TeacherSubject.class_section_id == class_section_id,
+            TeacherSubject.staff_id == entity_id,
+            TeacherSubject.subject == subject,
+        )
+    )
+    if not ts_res.scalar_one_or_none():
+        raise HTTPException(403, "Not assigned to this subject in this class")
 
 
 class ResultUnpublishIn(BaseModel):
@@ -29,6 +63,14 @@ async def bulk_upsert_results(
     _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
+    # Verify teacher has access to each unique class+subject combination
+    if user["role"] == "teacher":
+        seen = set()
+        for item in body.results:
+            key = (item.class_section_id, item.subject)
+            if key not in seen:
+                seen.add(key)
+                await _check_teacher_subject_access(db, user, item.class_section_id, item.subject)
     now = datetime.utcnow()
     created = []
     for item in body.results:
@@ -71,6 +113,8 @@ async def publish_results(
     _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
+    if user["role"] == "teacher" and body.class_section_id and body.subject:
+        await _check_teacher_subject_access(db, user, body.class_section_id, body.subject)
     now = datetime.utcnow()
     q = select(Result).where(Result.exam_id == body.exam_id)
     if body.class_section_id:
@@ -93,6 +137,8 @@ async def unpublish_results(
     _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
+    if user["role"] == "teacher":
+        await _check_teacher_subject_access(db, user, body.class_section_id, body.subject)
     q = select(Result).where(
         Result.exam_id == body.exam_id,
         Result.class_section_id == body.class_section_id,
@@ -198,6 +244,8 @@ async def update_result(
     result = res.scalar_one_or_none()
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
+    if user["role"] == "teacher":
+        await _check_teacher_subject_access(db, user, result.class_section_id, result.subject)
     for k, v in body.model_dump(exclude_none=True).items():
         setattr(result, k, v)
     result.updated_at = datetime.utcnow()

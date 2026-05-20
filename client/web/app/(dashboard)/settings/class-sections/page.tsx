@@ -25,6 +25,7 @@ interface AY { id: string; label: string; is_active: boolean; }
 interface CS {
   id: string; school_id: string; academic_year_id: string;
   class_name: string; section: string; class_teacher_id?: string;
+  class_teacher_name?: string; student_count?: number; subject_count?: number;
 }
 interface StaffMember { id: string; first_name: string; last_name?: string; name?: string; category: string; }
 
@@ -66,6 +67,14 @@ export default function ClassSectionsPage() {
   const teachers: StaffMember[] = staffData?.data ?? [];
 
   const set = (k: keyof typeof EMPTY_FORM, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  // Teachers already assigned as class teacher in the same AY (excluding the section being edited)
+  const usedTeacherIds = new Set(
+    sections
+      .filter((s) => s.academic_year_id === form.academic_year_id && s.id !== editing?.id)
+      .map((s) => s.class_teacher_id)
+      .filter(Boolean) as string[]
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -245,6 +254,8 @@ export default function ClassSectionsPage() {
                 <th className="px-4 py-3 text-left font-semibold">Section</th>
                 <th className="px-4 py-3 text-left font-semibold">Academic Year</th>
                 <th className="px-4 py-3 text-left font-semibold">Class Teacher</th>
+                <th className="px-4 py-3 text-left font-semibold">Students</th>
+                <th className="px-4 py-3 text-left font-semibold">Subjects</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
@@ -263,9 +274,20 @@ export default function ClassSectionsPage() {
                           <Badge variant="secondary">{cs.section}</Badge>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{ayLabel(cs.academic_year_id)}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{teacherName(cs.class_teacher_id)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {cs.class_teacher_name ?? teacherName(cs.class_teacher_id)}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {cs.student_count ?? '—'}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {cs.subject_count ?? '—'}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-2">
+                            <Link href={`/settings/class-sections/${cs.id}`}>
+                              <Button size="sm" variant="outline">Manage</Button>
+                            </Link>
                             <Button size="sm" variant="outline" onClick={() => openEdit(cs)}>Edit</Button>
                             <Button
                               size="sm"
@@ -341,11 +363,15 @@ export default function ClassSectionsPage() {
                 onChange={(e) => set('class_teacher_id', e.target.value)}
               >
                 <option value="">— none —</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.first_name ? `${t.first_name} ${t.last_name ?? ''}`.trim() : (t.name ?? t.id)}
-                  </option>
-                ))}
+                {teachers.map((t) => {
+                  const taken = usedTeacherIds.has(t.id);
+                  const name = t.first_name ? `${t.first_name} ${t.last_name ?? ''}`.trim() : (t.name ?? t.id);
+                  return (
+                    <option key={t.id} value={t.id} disabled={taken}>
+                      {name}{taken ? ' (already a class teacher)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>

@@ -56,3 +56,21 @@ class ClassSection(Base):
 
     school: Mapped["School"] = relationship("School", back_populates="class_sections")
     academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="class_sections")
+    class_teacher: Mapped[Optional["Staff"]] = relationship(
+        "Staff",
+        foreign_keys="[ClassSection.class_teacher_id]",
+        primaryjoin="ClassSection.class_teacher_id == Staff.id",
+        lazy="noload",
+    )
+    students: Mapped[list["Student"]] = relationship(
+        "Student",
+        foreign_keys="[Student.class_section_id]",
+        primaryjoin="ClassSection.id == Student.class_section_id",
+        lazy="noload",
+    )
+    subject_assignments: Mapped[list["TeacherSubject"]] = relationship(
+        "TeacherSubject",
+        foreign_keys="[TeacherSubject.class_section_id]",
+        primaryjoin="ClassSection.id == TeacherSubject.class_section_id",
+        lazy="noload",
+    )

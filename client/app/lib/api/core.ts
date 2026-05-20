@@ -32,3 +32,12 @@ export const updateClassSection = (id: string, data: {
 
 export const deleteClassSection = (id: string) =>
   apiClient.delete(`/class-sections/${id}`).then((r) => r.data);
+
+export const getClassSection = (id: string) =>
+  apiClient.get(`/class-sections/${id}`).then((r) => r.data);
+
+export const getRosterStudents = (csId: string, params?: Record<string, unknown>) =>
+  apiClient.get(`/class-sections/${csId}/students`, { params }).then((r) => r.data);
+
+export const getClassSubjects = (csId: string) =>
+  apiClient.get(`/class-sections/${csId}/subjects`).then((r) => r.data);

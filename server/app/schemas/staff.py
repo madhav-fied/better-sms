@@ -163,13 +163,25 @@ class TeacherSubjectCreate(BaseModel):
     staff_id: str
     subject: str
     class_section_id: str
-    academic_year_id: str
+    academic_year_id: Optional[str] = None
 
 
 class TeacherSubjectOut(BaseModel):
     id: str
     school_id: str
-    staff_id: str
+    staff_id: Optional[str]
+    subject: str
+    class_section_id: str
+    academic_year_id: str
+
+    model_config = {"from_attributes": True}
+
+
+class TeacherSubjectEnrichedOut(BaseModel):
+    id: str
+    school_id: str
+    staff_id: Optional[str] = None
+    staff_name: Optional[str] = None
     subject: str
     class_section_id: str
     academic_year_id: str

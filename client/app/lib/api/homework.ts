@@ -6,5 +6,8 @@ export const getHomework = (params?: Record<string, unknown>) =>
 export const getHomeworkById = (id: string) =>
   apiClient.get(`/homework/${id}`).then((r) => r.data);
 
+export const createHomework = (data: Record<string, unknown>) =>
+  apiClient.post('/homework', data).then((r) => r.data);
+
 export const updateHomework = (id: string, data: Record<string, unknown>) =>
   apiClient.put(`/homework/${id}`, data).then((r) => r.data);

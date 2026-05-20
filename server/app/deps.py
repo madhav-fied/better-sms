@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.config import settings
-from app.models.auth import Session as SessionModel
+from app.models.auth import Session as SessionModel, SchoolUser
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
@@ -32,14 +32,18 @@ async def get_current_user(
     now = datetime.now(timezone.utc)
 
     result = await db.execute(
-        select(SessionModel).where(
+        select(SessionModel, SchoolUser.entity_id)
+        .join(SchoolUser, SessionModel.school_user_id == SchoolUser.id)
+        .where(
             SessionModel.token_hash == token_hash,
             SessionModel.expires_at > now,
         )
     )
-    session = result.scalar_one_or_none()
-    if not session:
+    row = result.one_or_none()
+    if not row:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session")
+
+    session, entity_id = row
 
     # Sliding renewal: reset TTL if within last 7 days
     slide_threshold = session.expires_at - timedelta(days=7)
@@ -53,7 +57,7 @@ async def get_current_user(
         "user_id": session.school_user_id,
         "school_id": session.school_id,
         "role": session.role,
-        "entity_id": None,
+        "entity_id": entity_id,
     }
 
 

@@ -84,5 +84,8 @@ class ClassSectionOut(BaseModel):
     class_name: str
     section: str
     class_teacher_id: Optional[str]
+    class_teacher_name: Optional[str] = None
+    student_count: int = 0
+    subject_count: int = 0
 
     model_config = {"from_attributes": True}

@@ -6,6 +6,8 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_superadmin, require_admin
 from app.models.core import School, AcademicYear, ClassSection
+from app.models.student import Student
+from app.models.staff import Staff, TeacherSubject
 from app.schemas.core import (
     SchoolCreate, SchoolUpdate, SchoolOut,
     AcademicYearCreate, AcademicYearUpdate, AcademicYearOut,
@@ -39,7 +41,7 @@ async def create_school(
 @router.get("/schools", response_model=Response)
 async def list_schools(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
@@ -117,7 +119,7 @@ async def create_academic_year(
 async def list_academic_years(
     school_id: str = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
@@ -198,6 +200,47 @@ async def delete_academic_year(
 
 # ── Class Sections ────────────────────────────────────────────────────────────
 
+async def _enrich_sections(db: AsyncSession, sections: list[ClassSection]) -> list[dict]:
+    """Batch-load student counts, subject counts, and class teacher names."""
+    if not sections:
+        return []
+
+    cs_ids = [cs.id for cs in sections]
+
+    # Student counts grouped by class_section_id
+    stu_count_res = await db.execute(
+        select(Student.class_section_id, func.count(Student.id).label("cnt"))
+        .where(Student.class_section_id.in_(cs_ids))
+        .group_by(Student.class_section_id)
+    )
+    stu_counts: dict[str, int] = {row.class_section_id: row.cnt for row in stu_count_res.all()}
+
+    # Subject counts grouped by class_section_id
+    subj_count_res = await db.execute(
+        select(TeacherSubject.class_section_id, func.count(TeacherSubject.id).label("cnt"))
+        .where(TeacherSubject.class_section_id.in_(cs_ids))
+        .group_by(TeacherSubject.class_section_id)
+    )
+    subj_counts: dict[str, int] = {row.class_section_id: row.cnt for row in subj_count_res.all()}
+
+    # Batch-load staff for class_teacher_ids
+    teacher_ids = list({cs.class_teacher_id for cs in sections if cs.class_teacher_id})
+    staff_map: dict[str, Staff] = {}
+    if teacher_ids:
+        staff_res = await db.execute(select(Staff).where(Staff.id.in_(teacher_ids)))
+        staff_map = {s.id: s for s in staff_res.scalars().all()}
+
+    result = []
+    for cs in sections:
+        d = ClassSectionOut.model_validate(cs).model_dump()
+        d["student_count"] = stu_counts.get(cs.id, 0)
+        d["subject_count"] = subj_counts.get(cs.id, 0)
+        teacher = staff_map.get(cs.class_teacher_id) if cs.class_teacher_id else None
+        d["class_teacher_name"] = teacher.name if teacher else None
+        result.append(d)
+    return result
+
+
 @router.post("/class-sections", response_model=Response)
 async def create_class_section(
     body: ClassSectionCreate,
@@ -209,7 +252,8 @@ async def create_class_section(
     db.add(cs)
     await db.flush()
     await db.refresh(cs)
-    return ok(ClassSectionOut.model_validate(cs).model_dump())
+    enriched = await _enrich_sections(db, [cs])
+    return ok(enriched[0])
 
 
 @router.get("/class-sections", response_model=Response)
@@ -232,7 +276,8 @@ async def list_class_sections(
     offset = (page - 1) * limit
     result = await db.execute(q.offset(offset).limit(limit))
     items = result.scalars().all()
-    return ok([ClassSectionOut.model_validate(c).model_dump() for c in items], meta={"page": page, "limit": limit, "total": total})
+    enriched = await _enrich_sections(db, list(items))
+    return ok(enriched, meta={"page": page, "limit": limit, "total": total})
 
 
 @router.get("/class-sections/{cs_id}", response_model=Response)
@@ -241,7 +286,8 @@ async def get_class_section(cs_id: str, db: AsyncSession = Depends(get_db), user
     cs = result.scalar_one_or_none()
     if not cs:
         raise HTTPException(status_code=404, detail="Class section not found")
-    return ok(ClassSectionOut.model_validate(cs).model_dump())
+    enriched = await _enrich_sections(db, [cs])
+    return ok(enriched[0])
 
 
 @router.put("/class-sections/{cs_id}", response_model=Response)
@@ -260,7 +306,8 @@ async def update_class_section(
         setattr(cs, k, v)
     await db.flush()
     await db.refresh(cs)
-    return ok(ClassSectionOut.model_validate(cs).model_dump())
+    enriched = await _enrich_sections(db, [cs])
+    return ok(enriched[0])
 
 
 @router.delete("/class-sections/{cs_id}", response_model=Response)

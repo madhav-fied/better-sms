@@ -9,6 +9,7 @@ from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.auth import SchoolUser, Session as SessionModel
 from app.schemas.common import Response, ok
+from app.utils import normalize_phone
 
 router = APIRouter()
 
@@ -45,7 +46,7 @@ async def create_user(
     school_id = user["school_id"]
     new_user = SchoolUser(
         school_id=school_id,
-        phone=body.phone,
+        phone=normalize_phone(body.phone),
         role=body.role,
         entity_id=body.entity_id,
     )

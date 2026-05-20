@@ -7,7 +7,6 @@ import { useRole } from '../../../hooks/useRole';
 import { useAuthStore } from '../../../store/auth';
 import { useParentChildStore } from '../../../store/parentChild';
 import apiClient from '../../../lib/api/client';
-import { ChildSelector } from '../../../components/ChildSelector';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -54,7 +53,6 @@ export default function ResultsScreen() {
     const results = myResults?.data ?? [];
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
-        {role === 'parent' && <ChildSelector />}
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
             {role === 'parent' ? "Child's Results" : 'My Results'}

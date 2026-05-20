@@ -9,7 +9,6 @@ import { getAttendanceHistory, markStudentAttendance } from '../../../lib/api/at
 import { getClassSections } from '../../../lib/api/core';
 import apiClient from '../../../lib/api/client';
 import { Card } from '../../../components/ui/Card';
-import { ChildSelector } from '../../../components/ChildSelector';
 import { Button } from '../../../components/ui/Button';
 import { Spinner } from '../../../components/ui/Spinner';
 import { Badge } from '../../../components/ui/Badge';
@@ -64,7 +63,6 @@ export default function AttendanceScreen() {
   if (isViewer) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
-        {role === 'parent' && <ChildSelector />}
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
             {role === 'parent' ? "Child's Attendance" : 'My Attendance'}

@@ -43,7 +43,7 @@ async def create_subject(
 async def list_subjects(
     is_active: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

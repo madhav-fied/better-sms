@@ -6,6 +6,8 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.attendance import StudentAttendanceRecord, StaffAttendanceRecord
+from app.models.core import ClassSection
+from app.models.staff import TeacherSubject
 from app.schemas.attendance import (
     StudentAttendanceMarkIn, StudentAttendanceUpdate, StudentAttendanceOut,
     StaffAttendanceMarkIn, StaffAttendanceUpdate, StaffAttendanceOut,
@@ -13,6 +15,35 @@ from app.schemas.attendance import (
 from app.schemas.common import Response, ok
 
 router = APIRouter()
+
+
+async def _check_teacher_class_access(db: AsyncSession, user: dict, class_section_id: str) -> None:
+    """Raises 403/404 if a teacher is not assigned to the given class section. Admins bypass."""
+    role = user["role"]
+    if role in ("admin", "superadmin"):
+        return
+    if role != "teacher":
+        raise HTTPException(403, "Access denied")
+    entity_id = user["entity_id"]
+    cs_res = await db.execute(
+        select(ClassSection).where(
+            ClassSection.id == class_section_id,
+            ClassSection.school_id == user["school_id"],
+        )
+    )
+    cs = cs_res.scalar_one_or_none()
+    if not cs:
+        raise HTTPException(404, "Class section not found")
+    if cs.class_teacher_id == entity_id:
+        return
+    ts_res = await db.execute(
+        select(TeacherSubject).where(
+            TeacherSubject.class_section_id == class_section_id,
+            TeacherSubject.staff_id == entity_id,
+        )
+    )
+    if not ts_res.scalar_one_or_none():
+        raise HTTPException(403, "Not assigned to this class")
 
 
 # ── Student Attendance ────────────────────────────────────────────────────────
@@ -24,6 +55,7 @@ async def mark_student_attendance(
     _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
+    await _check_teacher_class_access(db, user, body.class_section_id)
     school_id = user["school_id"]
     now = datetime.utcnow()
     created = []
@@ -80,8 +112,31 @@ async def list_student_attendance(
 ):
     school_id = user["school_id"]
     q = select(StudentAttendanceRecord).where(StudentAttendanceRecord.school_id == school_id)
-    if class_section_id:
+
+    # Scope teachers to only their assigned class sections
+    if user["role"] == "teacher":
+        entity_id = user["entity_id"]
+        ts_res = await db.execute(
+            select(TeacherSubject.class_section_id).where(TeacherSubject.staff_id == entity_id).distinct()
+        )
+        teacher_class_ids = [row[0] for row in ts_res.all()]
+        ct_res = await db.execute(
+            select(ClassSection.id).where(
+                ClassSection.school_id == school_id,
+                ClassSection.class_teacher_id == entity_id,
+            )
+        )
+        teacher_class_ids += [row[0] for row in ct_res.all()]
+        teacher_class_ids = list(set(teacher_class_ids))
+        if class_section_id:
+            if class_section_id not in teacher_class_ids:
+                raise HTTPException(403, "Not assigned to this class")
+            q = q.where(StudentAttendanceRecord.class_section_id == class_section_id)
+        else:
+            q = q.where(StudentAttendanceRecord.class_section_id.in_(teacher_class_ids))
+    elif class_section_id:
         q = q.where(StudentAttendanceRecord.class_section_id == class_section_id)
+
     if academic_year_id:
         q = q.where(StudentAttendanceRecord.academic_year_id == academic_year_id)
     if date:

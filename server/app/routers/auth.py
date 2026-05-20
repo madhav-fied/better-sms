@@ -14,6 +14,7 @@ from app.models.core import School
 from app.schemas.common import Response, ok
 from app.services.otp import generate_otp, hash_otp, hash_token, otp_expires_at, send_otp
 from app.config import settings
+from app.utils import normalize_phone
 
 router = APIRouter()
 
@@ -33,6 +34,7 @@ class OtpVerifyBody(BaseModel):
 
 @router.post("/auth/otp/request", response_model=Response)
 async def request_otp(body: OtpRequestBody, db: AsyncSession = Depends(get_db)):
+    body.phone = normalize_phone(body.phone)
     now = datetime.now(timezone.utc)
 
     # Rate limiting: count OTP requests for this phone in the rate limit window
@@ -99,6 +101,7 @@ async def request_otp(body: OtpRequestBody, db: AsyncSession = Depends(get_db)):
 
 @router.post("/auth/otp/verify", response_model=Response)
 async def verify_otp(body: OtpVerifyBody, db: AsyncSession = Depends(get_db)):
+    body.phone = normalize_phone(body.phone)
     now = datetime.now(timezone.utc)
     print(body)
 

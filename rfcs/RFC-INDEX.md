@@ -1,8 +1,8 @@
 # SKEducations SMS — RFC Index
 
 **Base URL:** `https://bp3150.skeducations.com`  
-**Version:** 1.1 Draft  
-**Last Updated:** 2026-05-15 (RFC-020–022 Client RFCs added)
+**Version:** 1.2 Draft  
+**Last Updated:** 2026-05-20 (RFC-024 Class Roster & Subject Assignments)
 
 ---
 
@@ -33,6 +33,7 @@
 | [RFC-021](rfc-021-web-dashboard.md) | Web Admin Dashboard | Active | Next.js 15 admin dashboard — stack, page inventory, key flows (separate from mobile) |
 | [RFC-022](rfc-022-mobile-app.md) | Mobile App — Expo React Native | Active | Android app for actors (teacher/staff/student/parent) — navigation, screens, auth |
 | [RFC-023](rfc-023-superadmin-portal.md) | Super Admin Portal | Active | Superadmin web login (API key), school + first admin onboarding via UI |
+| [RFC-024](rfc-024-class-roster-subject-assignments.md) | Class Roster & Subject Assignments | Active | Class-student enrollment, subject-staff assignments, bulk promote/transfer |
 
 ---
 
@@ -329,6 +330,26 @@ DELETE /subjects/{id}
 ### Superadmin (RFC-023)
 ```
 POST   /superadmin/onboard-school
+```
+
+---
+
+### Class Roster & Subject Assignments (RFC-024)
+```
+# Class Roster — Students
+GET    /class-sections/{cs_id}/students
+POST   /class-sections/{cs_id}/students
+DELETE /class-sections/{cs_id}/students/{student_id}
+
+# Class Roster — Subjects
+GET    /class-sections/{cs_id}/subjects
+POST   /class-sections/{cs_id}/subjects
+PUT    /class-sections/{cs_id}/subjects/{ts_id}
+DELETE /class-sections/{cs_id}/subjects/{ts_id}
+
+# Student Bulk Operations (completes RFC-003 §4.3)
+POST   /students/change-class-section
+POST   /students/migrate
 ```
 
 ---

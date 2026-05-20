@@ -6,7 +6,6 @@ import { useAuthStore } from '../../../store/auth';
 import { useParentChildStore } from '../../../store/parentChild';
 import apiClient from '../../../lib/api/client';
 import { Card } from '../../../components/ui/Card';
-import { ChildSelector } from '../../../components/ChildSelector';
 import { Spinner } from '../../../components/ui/Spinner';
 import { ROLE_LABELS } from '../../../constants/roles';
 
@@ -112,7 +111,6 @@ export default function DashboardScreen() {
 
         {role === 'parent' && (
           <>
-            <ChildSelector />
             {selectedChild && (
               <Card>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 4 }}>

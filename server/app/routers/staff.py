@@ -185,7 +185,7 @@ async def create_teacher_subject(
 @router.get("/teacher-subjects", response_model=Response)
 async def list_teacher_subjects(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     staff_id: str = Query(None),
     class_section_id: str = Query(None),
     db: AsyncSession = Depends(get_db),
