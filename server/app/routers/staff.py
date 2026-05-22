@@ -7,6 +7,7 @@ from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.staff import Staff, TeacherSubject, StaffJobDetail
 from app.models.auth import SchoolUser, UserRole
+from app.models.core import ClassSection
 from app.schemas.staff import (
     StaffCreate, StaffUpdate, StaffOut,
     StaffJobDetailCreate, StaffJobDetailOut,
@@ -200,7 +201,22 @@ async def list_teacher_subjects(
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit
     items = (await db.execute(q.offset(offset).limit(limit))).scalars().all()
-    return ok([TeacherSubjectOut.model_validate(t).model_dump() for t in items], meta={"page": page, "limit": limit, "total": total})
+
+    cs_ids = list({t.class_section_id for t in items})
+    cs_map: dict[str, ClassSection] = {}
+    if cs_ids:
+        cs_res = await db.execute(select(ClassSection).where(ClassSection.id.in_(cs_ids)))
+        cs_map = {cs.id: cs for cs in cs_res.scalars().all()}
+
+    enriched = []
+    for t in items:
+        cs = cs_map.get(t.class_section_id)
+        d = TeacherSubjectOut.model_validate(t).model_dump()
+        d["class_name"] = cs.name if cs else None
+        d["section"] = cs.section if cs else None
+        enriched.append(d)
+
+    return ok(enriched, meta={"page": page, "limit": limit, "total": total})
 
 
 @router.delete("/teacher-subjects/{ts_id}", response_model=Response)

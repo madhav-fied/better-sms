@@ -6,8 +6,8 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.attendance import StudentAttendanceRecord, StaffAttendanceRecord
+from app.models.admission import ParentGuardian
 from app.models.core import ClassSection
-from app.models.staff import TeacherSubject
 from app.schemas.attendance import (
     StudentAttendanceMarkIn, StudentAttendanceUpdate, StudentAttendanceOut,
     StaffAttendanceMarkIn, StaffAttendanceUpdate, StaffAttendanceOut,
@@ -17,13 +17,10 @@ from app.schemas.common import Response, ok
 router = APIRouter()
 
 
-async def _check_teacher_class_access(db: AsyncSession, user: dict, class_section_id: str) -> None:
-    """Raises 403/404 if a teacher is not assigned to the given class section. Admins bypass."""
-    role = user["role"]
-    if role in ("admin", "superadmin"):
-        return
-    if role != "teacher":
-        raise HTTPException(403, "Access denied")
+async def _check_class_teacher_access(db: AsyncSession, user: dict, class_section_id: str) -> None:
+    """Raises 403/404 unless the user is the class teacher of the given section."""
+    if user["role"] != "teacher":
+        raise HTTPException(403, "Only the class teacher can mark attendance")
     entity_id = user["entity_id"]
     cs_res = await db.execute(
         select(ClassSection).where(
@@ -34,16 +31,20 @@ async def _check_teacher_class_access(db: AsyncSession, user: dict, class_sectio
     cs = cs_res.scalar_one_or_none()
     if not cs:
         raise HTTPException(404, "Class section not found")
-    if cs.class_teacher_id == entity_id:
-        return
-    ts_res = await db.execute(
-        select(TeacherSubject).where(
-            TeacherSubject.class_section_id == class_section_id,
-            TeacherSubject.staff_id == entity_id,
+    if cs.class_teacher_id != entity_id:
+        raise HTTPException(403, "Only the class teacher can mark attendance for this class")
+
+
+async def _verify_parent_ward(db: AsyncSession, entity_id: str, student_id: str) -> None:
+    """Raises 403 if entity_id (parent) is not linked to student_id via parent_guardians."""
+    pg_res = await db.execute(
+        select(ParentGuardian).where(
+            ParentGuardian.parent_id == entity_id,
+            ParentGuardian.student_id == student_id,
         )
     )
-    if not ts_res.scalar_one_or_none():
-        raise HTTPException(403, "Not assigned to this class")
+    if not pg_res.scalar_one_or_none():
+        raise HTTPException(403, "Access denied")
 
 
 # ── Student Attendance ────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ async def mark_student_attendance(
     _: None = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    await _check_teacher_class_access(db, user, body.class_section_id)
+    await _check_class_teacher_access(db, user, body.class_section_id)
     school_id = user["school_id"]
     now = datetime.utcnow()
     created = []
@@ -111,38 +112,59 @@ async def list_student_attendance(
     user: dict = Depends(get_current_user),
 ):
     school_id = user["school_id"]
+    role = user["role"]
+    entity_id = user["entity_id"]
     q = select(StudentAttendanceRecord).where(StudentAttendanceRecord.school_id == school_id)
 
-    # Scope teachers to only their assigned class sections
-    if user["role"] == "teacher":
-        entity_id = user["entity_id"]
-        ts_res = await db.execute(
-            select(TeacherSubject.class_section_id).where(TeacherSubject.staff_id == entity_id).distinct()
-        )
-        teacher_class_ids = [row[0] for row in ts_res.all()]
+    if role == "teacher":
+        # Teachers see only their homeroom class
         ct_res = await db.execute(
             select(ClassSection.id).where(
                 ClassSection.school_id == school_id,
                 ClassSection.class_teacher_id == entity_id,
             )
         )
-        teacher_class_ids += [row[0] for row in ct_res.all()]
-        teacher_class_ids = list(set(teacher_class_ids))
+        teacher_class_ids = [row[0] for row in ct_res.all()]
         if class_section_id:
             if class_section_id not in teacher_class_ids:
-                raise HTTPException(403, "Not assigned to this class")
+                raise HTTPException(403, "Not your class")
             q = q.where(StudentAttendanceRecord.class_section_id == class_section_id)
         else:
             q = q.where(StudentAttendanceRecord.class_section_id.in_(teacher_class_ids))
-    elif class_section_id:
-        q = q.where(StudentAttendanceRecord.class_section_id == class_section_id)
+
+    elif role == "parent":
+        # Parents see only their ward(s)
+        pg_res = await db.execute(
+            select(ParentGuardian.student_id).where(ParentGuardian.parent_id == entity_id)
+        )
+        ward_ids = [row[0] for row in pg_res.all() if row[0]]
+        if student_id:
+            if student_id not in ward_ids:
+                raise HTTPException(403, "Access denied")
+            q = q.where(StudentAttendanceRecord.student_id == student_id)
+        elif ward_ids:
+            q = q.where(StudentAttendanceRecord.student_id.in_(ward_ids))
+        else:
+            return ok([], meta={"page": page, "limit": limit, "total": 0})
+
+    elif role == "student":
+        # Students see only their own records
+        if student_id and student_id != entity_id:
+            raise HTTPException(403, "Access denied")
+        q = q.where(StudentAttendanceRecord.student_id == entity_id)
+
+    else:
+        # admin / superadmin: unrestricted view
+        if class_section_id:
+            q = q.where(StudentAttendanceRecord.class_section_id == class_section_id)
 
     if academic_year_id:
         q = q.where(StudentAttendanceRecord.academic_year_id == academic_year_id)
     if date:
         q = q.where(StudentAttendanceRecord.date == date)
-    if student_id:
+    if student_id and role not in ("parent", "student"):
         q = q.where(StudentAttendanceRecord.student_id == student_id)
+
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit
     items = (await db.execute(q.order_by(StudentAttendanceRecord.date.desc()).offset(offset).limit(limit))).scalars().all()
@@ -164,6 +186,7 @@ async def update_student_attendance(
     rec = res.scalar_one_or_none()
     if not rec:
         raise HTTPException(status_code=404, detail="Attendance record not found")
+    await _check_class_teacher_access(db, user, rec.class_section_id)
     if body.status:
         rec.previous_status = rec.status
         rec.status = body.status
@@ -187,6 +210,15 @@ async def student_attendance_summary(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
+    role = user["role"]
+    entity_id = user["entity_id"]
+
+    if role == "parent":
+        await _verify_parent_ward(db, entity_id, student_id)
+    elif role == "student":
+        if entity_id != student_id:
+            raise HTTPException(403, "Access denied")
+
     school_id = user["school_id"]
     q = select(StudentAttendanceRecord).where(
         StudentAttendanceRecord.school_id == school_id,

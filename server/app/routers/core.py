@@ -260,6 +260,7 @@ async def create_class_section(
 async def list_class_sections(
     school_id: str = Query(None),
     academic_year_id: str = Query(None),
+    class_teacher_only: bool = Query(False),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -271,6 +272,8 @@ async def list_class_sections(
         q = q.where(ClassSection.school_id == sid)
     if academic_year_id:
         q = q.where(ClassSection.academic_year_id == academic_year_id)
+    if class_teacher_only and user["role"] == "teacher":
+        q = q.where(ClassSection.class_teacher_id == user["entity_id"])
     total_result = await db.execute(select(func.count()).select_from(q.subquery()))
     total = total_result.scalar_one()
     offset = (page - 1) * limit

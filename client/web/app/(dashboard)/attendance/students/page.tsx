@@ -6,10 +6,12 @@ import apiClient from '@/lib/api/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ClassSectionPicker } from '@/components/shared/ClassSectionPicker';
+import { useAuthStore } from '@/store/auth';
 
 interface StudentRow { id: string; name: string }
 
 export default function StudentAttendancePage() {
+  const role = useAuthStore((s) => s.role);
   const [classSectionId, setClassSectionId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState<Record<string, 'present' | 'absent' | 'leave'>>({});
@@ -49,6 +51,7 @@ export default function StudentAttendancePage() {
             value={classSectionId}
             onChange={(id) => { setClassSectionId(id); setRecords({}); }}
             className="w-56"
+            classTeacherOnly={role === 'teacher'}
           />
         </div>
         <div>

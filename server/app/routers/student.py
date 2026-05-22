@@ -59,6 +59,7 @@ async def _build_responses(db: AsyncSession, students: list[Student]) -> list[di
     result = []
     for s in students:
         d = StudentOut.model_validate(s).model_dump()
+        d["name"] = f"{s.first_name} {s.last_name}".strip()
         if s.class_section_id and s.class_section_id in cs_map:
             cs = cs_map[s.class_section_id]
             d["class_name"] = cs.class_name

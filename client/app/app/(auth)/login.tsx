@@ -67,7 +67,7 @@ export default function LoginScreen() {
     try {
       const res = await verifyOtp(normalizePhone(phone), otp, schoolId || undefined);
       const d = res.data;
-      setSession({
+      await setSession({
         token: d.token,
         role: d.role,
         schoolId: d.school_id,

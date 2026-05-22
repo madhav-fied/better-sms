@@ -149,6 +149,10 @@ export default function AppLayout() {
           }}
         />
       ))}
+      <Tabs.Screen name="homework/[id]" options={{ title: 'Homework', href: null }} />
+      <Tabs.Screen name="notices/[id]" options={{ title: 'Notice', href: null }} />
+      <Tabs.Screen name="concerns/[id]" options={{ title: 'Concern', href: null }} />
+      <Tabs.Screen name="my-classes/[id]" options={{ title: 'Class', href: null }} />
     </Tabs>
   );
 }

@@ -8,6 +8,9 @@ from sqlalchemy import select, func, delete
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.auth import SchoolUser, Session as SessionModel
+from app.models.staff import Staff
+from app.models.student import Student
+from app.models.parent import Parent
 from app.schemas.common import Response, ok
 from app.utils import normalize_phone
 
@@ -24,16 +27,43 @@ class UserStatusUpdate(BaseModel):
     is_active: bool
 
 
-def _user_out(u: SchoolUser) -> dict:
+def _user_out(u: SchoolUser, name: str | None = None) -> dict:
     return {
         "id": u.id,
         "school_id": u.school_id,
         "role": u.role,
         "phone": u.phone,
+        "name": name or "—",
         "entity_id": u.entity_id,
         "is_active": u.is_active,
         "created_at": u.created_at,
     }
+
+
+async def _resolve_names(db: AsyncSession, users: list[SchoolUser]) -> dict[str, str]:
+    """Return a map of user.id → display name by joining entity tables."""
+    staff_ids, student_ids, parent_ids = [], [], []
+    for u in users:
+        if u.entity_id:
+            if u.role in ("teacher", "staff"):
+                staff_ids.append(u.entity_id)
+            elif u.role == "student":
+                student_ids.append(u.entity_id)
+            elif u.role == "parent":
+                parent_ids.append(u.entity_id)
+
+    entity_name: dict[str, str] = {}
+    if staff_ids:
+        rows = (await db.execute(select(Staff.id, Staff.name).where(Staff.id.in_(staff_ids)))).all()
+        entity_name.update({r[0]: r[1] for r in rows})
+    if student_ids:
+        rows = (await db.execute(select(Student.id, Student.first_name, Student.last_name).where(Student.id.in_(student_ids)))).all()
+        entity_name.update({r[0]: f"{r[1]} {r[2]}".strip() for r in rows})
+    if parent_ids:
+        rows = (await db.execute(select(Parent.id, Parent.name).where(Parent.id.in_(parent_ids)))).all()
+        entity_name.update({r[0]: r[1] for r in rows})
+
+    return {u.id: entity_name.get(u.entity_id or "", "") for u in users}
 
 
 @router.post("/users", response_model=Response)
@@ -53,7 +83,8 @@ async def create_user(
     db.add(new_user)
     await db.flush()
     await db.refresh(new_user)
-    return ok(_user_out(new_user))
+    name_map = await _resolve_names(db, [new_user])
+    return ok(_user_out(new_user, name_map.get(new_user.id)))
 
 
 @router.get("/users", response_model=Response)
@@ -75,7 +106,8 @@ async def list_users(
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit
     items = (await db.execute(q.order_by(SchoolUser.created_at.desc()).offset(offset).limit(limit))).scalars().all()
-    return ok([_user_out(u) for u in items], meta={"page": page, "limit": limit, "total": total})
+    name_map = await _resolve_names(db, items)
+    return ok([_user_out(u, name_map.get(u.id)) for u in items], meta={"page": page, "limit": limit, "total": total})
 
 
 @router.get("/users/{user_id}", response_model=Response)
@@ -92,7 +124,8 @@ async def get_user(
     found = res.scalar_one_or_none()
     if not found:
         raise HTTPException(status_code=404, detail="User not found")
-    return ok(_user_out(found))
+    name_map = await _resolve_names(db, [found])
+    return ok(_user_out(found, name_map.get(found.id)))
 
 
 @router.patch("/users/{user_id}/status", response_model=Response)
@@ -113,7 +146,8 @@ async def set_user_status(
     found.is_active = body.is_active
     await db.flush()
     await db.refresh(found)
-    return ok(_user_out(found))
+    name_map = await _resolve_names(db, [found])
+    return ok(_user_out(found, name_map.get(found.id)))
 
 
 @router.delete("/users/{user_id}/sessions", response_model=Response)

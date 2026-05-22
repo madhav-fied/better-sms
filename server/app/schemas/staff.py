@@ -86,6 +86,7 @@ class StaffOut(BaseModel):
     id: str
     school_id: str
     emp_code: Optional[str] = None
+    name: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     short_name: Optional[str] = None

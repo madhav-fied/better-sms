@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, and_
 
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
@@ -12,12 +12,13 @@ from app.models.communications import (
     Newsletter, NewsletterAttachment,
 )
 from app.models.core import ClassSection
-from app.models.staff import TeacherSubject
+from app.models.student import Student
+from app.models.admission import ParentGuardian
 from app.schemas.communications import (
-    NoticeCreate, NoticeUpdate, NoticeOut, NoticeAttachmentOut,
-    ConcernCreate, ConcernMessageCreate, ConcernOut, ConcernMessageOut,
-    SyllabusCreate, SyllabusUpdate, SyllabusOut, SyllabusAttachmentOut,
-    NewsletterCreate, NewsletterUpdate, NewsletterOut, NewsletterAttachmentOut,
+    NoticeCreate, NoticeUpdate, NoticeAttachmentOut,
+    ConcernMessageOut,
+    SyllabusCreate, SyllabusUpdate, SyllabusAttachmentOut,
+    NewsletterCreate, NewsletterUpdate, NewsletterAttachmentOut,
 )
 from app.schemas.common import Response, ok
 from typing import Optional
@@ -27,7 +28,7 @@ router = APIRouter()
 
 
 class ConcernCreateExtended(BaseModel):
-    student_id: str
+    student_id: Optional[str] = None
     category: str
     subject: str
     directed_to: str
@@ -77,6 +78,86 @@ def _newsletter_out(nl, attachments: list) -> dict:
     }
 
 
+async def _teacher_homeroom_class_ids(db: AsyncSession, school_id: str, entity_id: str) -> list[str]:
+    res = await db.execute(
+        select(ClassSection.id).where(
+            ClassSection.school_id == school_id,
+            ClassSection.class_teacher_id == entity_id,
+        )
+    )
+    return [row[0] for row in res.all()]
+
+
+async def _user_visible_class_ids(db: AsyncSession, user: dict) -> list[str]:
+    """Returns class_section_ids the user belongs to (for notice / homework read scoping)."""
+    role, entity_id, school_id = user["role"], user["entity_id"], user["school_id"]
+    if role == "teacher":
+        return await _teacher_homeroom_class_ids(db, school_id, entity_id)
+    if role == "student":
+        res = await db.execute(select(Student.class_section_id).where(Student.id == entity_id))
+        cs_id = res.scalar_one_or_none()
+        return [cs_id] if cs_id else []
+    if role == "parent":
+        pg_res = await db.execute(
+            select(ParentGuardian.student_id).where(ParentGuardian.parent_id == entity_id)
+        )
+        ward_ids = [r[0] for r in pg_res.all() if r[0]]
+        if not ward_ids:
+            return []
+        s_res = await db.execute(
+            select(Student.class_section_id).where(
+                Student.id.in_(ward_ids), Student.class_section_id.isnot(None)
+            )
+        )
+        return list({r[0] for r in s_res.all() if r[0]})
+    return []
+
+
+def _notice_visible(notice: Notice, role: str, user_class_ids: list[str]) -> bool:
+    """True if the notice is visible to the caller."""
+    if notice.target_type == "school_wide":
+        return True  # school-wide is visible to everyone
+    # class_sections notice
+    if role in ("admin", "superadmin"):
+        return True  # admins see everything for oversight
+    targets = notice.target_class_section_ids or []
+    return any(cid in targets for cid in user_class_ids)
+
+
+async def _assert_concern_access(db: AsyncSession, concern: Concern, user: dict) -> None:
+    """Raises 403 if the caller is not allowed to view/interact with this concern."""
+    role = user["role"]
+    if role in ("admin", "superadmin"):
+        if concern.directed_to != "admin":
+            raise HTTPException(403, "Access denied")
+        return
+    if role == "parent":
+        if concern.submitted_by != user["user_id"]:
+            raise HTTPException(403, "Access denied")
+        return
+    if role == "teacher":
+        entity_id = user["entity_id"]
+        if concern.directed_to == "specific_staff" and concern.directed_to_staff_id == entity_id:
+            return
+        if concern.directed_to == "class_teacher" and concern.student_id:
+            # Verify the student is in the teacher's homeroom class
+            s_res = await db.execute(
+                select(Student.class_section_id).where(Student.id == concern.student_id)
+            )
+            cs_id = s_res.scalar_one_or_none()
+            if cs_id:
+                cs_res = await db.execute(
+                    select(ClassSection).where(
+                        ClassSection.id == cs_id,
+                        ClassSection.class_teacher_id == entity_id,
+                    )
+                )
+                if cs_res.scalar_one_or_none():
+                    return
+        raise HTTPException(403, "Access denied")
+    raise HTTPException(403, "Access denied")
+
+
 # ── Notices ───────────────────────────────────────────────────────────────────
 
 @router.post("/communications/notices", response_model=Response)
@@ -89,42 +170,21 @@ async def create_notice(
     school_id = user["school_id"]
     role = user["role"]
 
-    # Class-teacher access: if targeting specific class_sections, check if caller is class teacher
-    # for any of the targets. Teachers with TeacherSubject mapping are also allowed.
-    # Admins and superadmin can always create notices.
-    if role not in ("superadmin", "admin") and body.target_type == "class_sections":
-        entity_id = user.get("entity_id")
-        allowed = False
-
-        if entity_id and body.target_class_section_ids:
-            # Check TeacherSubject mapping
-            ts_res = await db.execute(
-                select(TeacherSubject).where(
-                    TeacherSubject.school_id == school_id,
-                    TeacherSubject.staff_id == entity_id,
-                    TeacherSubject.class_section_id.in_(body.target_class_section_ids),
-                )
-            )
-            if ts_res.scalars().first():
-                allowed = True
-
-            if not allowed:
-                # Check class_teacher_id on any of the targeted sections
-                ct_res = await db.execute(
-                    select(ClassSection).where(
-                        ClassSection.school_id == school_id,
-                        ClassSection.id.in_(body.target_class_section_ids),
-                        ClassSection.class_teacher_id == entity_id,
-                    )
-                )
-                if ct_res.scalars().first():
-                    allowed = True
-
-        if not allowed:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not authorized to send notices to these class sections"
-            )
+    if role in ("admin", "superadmin"):
+        # Admins send school-wide only
+        if body.target_type != "school_wide":
+            raise HTTPException(403, "Admins can only send school-wide notices")
+    else:
+        # Teachers send to their homeroom class only
+        if body.target_type != "class_sections":
+            raise HTTPException(403, "Teachers can only send class-specific notices")
+        if not body.target_class_section_ids:
+            raise HTTPException(422, "target_class_section_ids is required for class notices")
+        entity_id = user["entity_id"]
+        homeroom_ids = await _teacher_homeroom_class_ids(db, school_id, entity_id)
+        forbidden = [cid for cid in body.target_class_section_ids if cid not in homeroom_ids]
+        if forbidden:
+            raise HTTPException(403, "You can only send notices to your own class")
 
     notice = Notice(school_id=school_id, sent_by=user["user_id"], **body.model_dump())
     db.add(notice)
@@ -142,14 +202,21 @@ async def list_notices(
     user: dict = Depends(get_current_user),
 ):
     school_id = user["school_id"]
+    role = user["role"]
     q = select(Notice).where(Notice.school_id == school_id)
     if status:
         q = q.where(Notice.status == status)
-    total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
+    all_notices = (await db.execute(q.order_by(Notice.created_at.desc()))).scalars().all()
+
+    user_class_ids = await _user_visible_class_ids(db, user)
+    visible = [n for n in all_notices if _notice_visible(n, role, user_class_ids)]
+
+    total = len(visible)
     offset = (page - 1) * limit
-    notices = (await db.execute(q.order_by(Notice.created_at.desc()).offset(offset).limit(limit))).scalars().all()
+    page_notices = visible[offset: offset + limit]
+
     results = []
-    for n in notices:
+    for n in page_notices:
         atts = (await db.execute(select(NoticeAttachment).where(NoticeAttachment.notice_id == n.id))).scalars().all()
         results.append(_notice_out(n, [NoticeAttachmentOut.model_validate(a).model_dump() for a in atts]))
     return ok(results, meta={"page": page, "limit": limit, "total": total})
@@ -161,6 +228,9 @@ async def get_notice(notice_id: str, db: AsyncSession = Depends(get_db), user: d
     notice = res.scalar_one_or_none()
     if not notice:
         raise HTTPException(status_code=404, detail="Notice not found")
+    user_class_ids = await _user_visible_class_ids(db, user)
+    if not _notice_visible(notice, user["role"], user_class_ids):
+        raise HTTPException(403, "Access denied")
     atts = (await db.execute(select(NoticeAttachment).where(NoticeAttachment.notice_id == notice.id))).scalars().all()
     return ok(_notice_out(notice, [NoticeAttachmentOut.model_validate(a).model_dump() for a in atts]))
 
@@ -177,6 +247,10 @@ async def update_notice(
     notice = res.scalar_one_or_none()
     if not notice:
         raise HTTPException(status_code=404, detail="Notice not found")
+    role = user["role"]
+    # Admin can manage any school-wide notice; teacher only their own
+    if role not in ("admin", "superadmin") and notice.sent_by != user["user_id"]:
+        raise HTTPException(403, "You can only edit your own notices")
     for k, v in body.model_dump(exclude_none=True).items():
         setattr(notice, k, v)
     notice.updated_at = datetime.utcnow()
@@ -196,6 +270,9 @@ async def publish_notice(
     notice = res.scalar_one_or_none()
     if not notice:
         raise HTTPException(status_code=404, detail="Notice not found")
+    role = user["role"]
+    if role not in ("admin", "superadmin") and notice.sent_by != user["user_id"]:
+        raise HTTPException(403, "You can only publish your own notices")
     notice.status = "published"
     notice.published_at = datetime.utcnow()
     await db.flush()
@@ -214,6 +291,9 @@ async def archive_notice(
     notice = res.scalar_one_or_none()
     if not notice:
         raise HTTPException(status_code=404, detail="Notice not found")
+    role = user["role"]
+    if role not in ("admin", "superadmin") and notice.sent_by != user["user_id"]:
+        raise HTTPException(403, "You can only archive your own notices")
     notice.status = "archived"
     notice.updated_at = datetime.utcnow()
     await db.flush()
@@ -247,19 +327,14 @@ async def create_concern(
     user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
+    print(body)
     role = user["role"]
-    # Allow parent or admin to submit concerns
     if role not in ("superadmin", "admin", "parent"):
         raise HTTPException(status_code=403, detail="Only parents or admins can submit concerns")
 
     school_id = user["school_id"]
     now = datetime.utcnow()
-
-    # Determine sender_type based on role
-    if role in ("superadmin", "admin"):
-        sender_type = "admin"
-    else:
-        sender_type = "parent"
+    sender_type = "admin" if role in ("superadmin", "admin") else "parent"
 
     concern = Concern(
         school_id=school_id,
@@ -275,7 +350,6 @@ async def create_concern(
     db.add(concern)
     await db.flush()
 
-    # Build initial message with optional on_behalf_note
     message_body = body.initial_message
     if body.on_behalf_note:
         message_body = f"[On behalf note: {body.on_behalf_note}]\n\n{message_body}"
@@ -304,11 +378,46 @@ async def list_concerns(
     user: dict = Depends(get_current_user),
 ):
     school_id = user["school_id"]
+    role = user["role"]
+    entity_id = user["entity_id"]
     q = select(Concern).where(Concern.school_id == school_id)
     if status:
         q = q.where(Concern.status == status)
     if student_id:
         q = q.where(Concern.student_id == student_id)
+
+    if role in ("admin", "superadmin"):
+        q = q.where(Concern.directed_to == "admin")
+
+    elif role == "teacher":
+        # Class teacher sees class_teacher concerns for students in their class
+        # + specific_staff concerns directed to them
+        homeroom_ids = await _teacher_homeroom_class_ids(db, school_id, entity_id)
+        if homeroom_ids:
+            s_res = await db.execute(
+                select(Student.id).where(Student.class_section_id.in_(homeroom_ids))
+            )
+            student_ids = [r[0] for r in s_res.all()]
+        else:
+            student_ids = []
+
+        class_teacher_cond = and_(
+            Concern.directed_to == "class_teacher",
+            Concern.student_id.in_(student_ids) if student_ids else Concern.id.is_(None),
+        )
+        specific_staff_cond = and_(
+            Concern.directed_to == "specific_staff",
+            Concern.directed_to_staff_id == entity_id,
+        )
+        q = q.where(or_(class_teacher_cond, specific_staff_cond))
+
+    elif role == "parent":
+        q = q.where(Concern.submitted_by == user["user_id"])
+
+    else:
+        # Students and others see nothing
+        return ok([], meta={"page": page, "limit": limit, "total": 0})
+
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit
     concerns = (await db.execute(q.order_by(Concern.created_at.desc()).offset(offset).limit(limit))).scalars().all()
@@ -325,14 +434,19 @@ async def get_concern(concern_id: str, db: AsyncSession = Depends(get_db), user:
     concern = res.scalar_one_or_none()
     if not concern:
         raise HTTPException(status_code=404, detail="Concern not found")
+    await _assert_concern_access(db, concern, user)
     msgs = (await db.execute(select(ConcernMessage).where(ConcernMessage.concern_id == concern.id))).scalars().all()
     return ok(_concern_out(concern, [ConcernMessageOut.model_validate(m).model_dump() for m in msgs]))
+
+
+class ConcernReplyBody(BaseModel):
+    body: str
 
 
 @router.post("/communications/concerns/{concern_id}/messages", response_model=Response)
 async def add_concern_message(
     concern_id: str,
-    body: ConcernMessageCreate,
+    body: ConcernReplyBody,
     user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
@@ -340,11 +454,19 @@ async def add_concern_message(
     concern = res.scalar_one_or_none()
     if not concern:
         raise HTTPException(status_code=404, detail="Concern not found")
+    await _assert_concern_access(db, concern, user)
+    role = user["role"]
+    if role in ("superadmin", "admin", "teacher"):
+        sender_type = "staff"
+        sender_name = "Staff"
+    else:
+        sender_type = "parent"
+        sender_name = "Parent"
     msg = ConcernMessage(
         concern_id=concern_id,
-        sender_type=body.sender_type,
+        sender_type=sender_type,
         sender_id=user["user_id"],
-        sender_name=body.sender_name,
+        sender_name=sender_name,
         body=body.body,
     )
     db.add(msg)
@@ -366,6 +488,7 @@ async def acknowledge_concern(
     concern = res.scalar_one_or_none()
     if not concern:
         raise HTTPException(status_code=404, detail="Concern not found")
+    await _assert_concern_access(db, concern, user)
     concern.status = "acknowledged"
     concern.last_activity_at = datetime.utcnow()
     await db.flush()
@@ -384,6 +507,7 @@ async def resolve_concern(
     concern = res.scalar_one_or_none()
     if not concern:
         raise HTTPException(status_code=404, detail="Concern not found")
+    await _assert_concern_access(db, concern, user)
     concern.status = "resolved"
     concern.resolved_by = user["user_id"]
     concern.resolved_at = datetime.utcnow()

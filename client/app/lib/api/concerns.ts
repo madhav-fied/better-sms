@@ -9,5 +9,11 @@ export const getConcern = (id: string) =>
 export const createConcern = (data: unknown) =>
   apiClient.post('/communications/concerns', data).then((r) => r.data);
 
-export const replyConcern = (id: string, message: string) =>
-  apiClient.post(`/communications/concerns/${id}/messages`, { message }).then((r) => r.data);
+export const replyConcern = (id: string, body: string) =>
+  apiClient.post(`/communications/concerns/${id}/messages`, { body }).then((r) => r.data);
+
+export const acknowledgeConcern = (id: string) =>
+  apiClient.patch(`/communications/concerns/${id}/acknowledge`).then((r) => r.data);
+
+export const resolveConcern = (id: string) =>
+  apiClient.patch(`/communications/concerns/${id}/resolve`).then((r) => r.data);

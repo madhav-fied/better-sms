@@ -24,13 +24,13 @@ export default function AttendanceScreen() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState<Record<string, string>>({});
 
-  const isTeacher = role === 'teacher' || role === 'admin';
+  const isTeacher = role === 'teacher';
   const isViewer = role === 'student' || role === 'parent';
   const viewerStudentId = role === 'parent' ? selectedChildId : entityId;
 
   const { data: sectionsData } = useQuery({
-    queryKey: ['class-sections'],
-    queryFn: () => getClassSections({ limit: 200 }),
+    queryKey: ['class-sections', 'my-classes'],
+    queryFn: () => getClassSections({ limit: 200, class_teacher_only: true }),
     enabled: isTeacher,
   });
   const sections = sectionsData?.data ?? [];

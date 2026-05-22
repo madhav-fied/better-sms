@@ -96,7 +96,7 @@ class Concern(Base):
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     school_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("schools.id"), nullable=False)
-    student_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("students.id"), nullable=False)
+    student_id: Mapped[Optional[str]] = mapped_column(sa.String(36), sa.ForeignKey("students.id"), nullable=True)
     submitted_by: Mapped[str] = mapped_column(sa.String(36), nullable=False)
     category: Mapped[str] = mapped_column(sa.Enum(ConcernCategory, native_enum=False), nullable=False)
     subject: Mapped[str] = mapped_column(sa.String(255), nullable=False)

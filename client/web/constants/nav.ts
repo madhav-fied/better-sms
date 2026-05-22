@@ -41,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Timetable', href: '/timetable', roles: ['admin', 'superadmin', 'staff'] },
   { label: 'Exams', href: '/exams', roles: ['admin', 'superadmin', 'staff'] },
   { label: 'Results', href: '/results', roles: ['admin', 'superadmin', 'staff'] },
+  { label: 'Profile', href: '/profile', roles: ['superadmin', 'admin', 'teacher', 'staff'] },
   {
     label: 'Settings', href: '/settings/academic-years', roles: ['admin', 'superadmin'],
     children: [

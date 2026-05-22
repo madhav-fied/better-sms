@@ -105,7 +105,7 @@ async def _require_subject_access(db: AsyncSession, user: dict, cs_id: str) -> C
 # ── Enrich teacher-subject list ────────────────────────────────────────────────
 
 async def _enrich_ts(db: AsyncSession, ts_list: list[TeacherSubject]) -> list[dict]:
-    """Batch-load staff names and return enriched dicts."""
+    """Batch-load staff names and class section names, return enriched dicts."""
     if not ts_list:
         return []
     staff_ids = list({ts.staff_id for ts in ts_list if ts.staff_id})
@@ -114,9 +114,16 @@ async def _enrich_ts(db: AsyncSession, ts_list: list[TeacherSubject]) -> list[di
         staff_res = await db.execute(select(Staff).where(Staff.id.in_(staff_ids)))
         staff_map = {s.id: s for s in staff_res.scalars().all()}
 
+    cs_ids = list({ts.class_section_id for ts in ts_list})
+    cs_map: dict[str, ClassSection] = {}
+    if cs_ids:
+        cs_res = await db.execute(select(ClassSection).where(ClassSection.id.in_(cs_ids)))
+        cs_map = {cs.id: cs for cs in cs_res.scalars().all()}
+
     result = []
     for ts in ts_list:
         staff = staff_map.get(ts.staff_id) if ts.staff_id else None
+        cs = cs_map.get(ts.class_section_id)
         result.append(
             {
                 "id": ts.id,
@@ -125,6 +132,8 @@ async def _enrich_ts(db: AsyncSession, ts_list: list[TeacherSubject]) -> list[di
                 "staff_name": staff.name if staff else None,
                 "subject": ts.subject,
                 "class_section_id": ts.class_section_id,
+                "class_name": cs.name if cs else None,
+                "section": cs.section if cs else None,
                 "academic_year_id": ts.academic_year_id,
             }
         )

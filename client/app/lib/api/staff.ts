@@ -17,3 +17,6 @@ export const upsertJobDetail = (staffId: string, data: unknown) =>
 
 export const toggleStaffStatus = (id: string) =>
   apiClient.patch(`/staff/${id}/status`).then((r) => r.data);
+
+export const getTeacherSubjects = (staffId: string) =>
+  apiClient.get('/teacher-subjects', { params: { staff_id: staffId, limit: 100 } }).then((r) => r.data);

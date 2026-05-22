@@ -30,6 +30,8 @@ interface Props {
   disabled?: boolean;
   /** If true, renders a compact filter-bar style (shorter height) */
   compact?: boolean;
+  /** If true, only shows sections where the logged-in teacher is the class teacher */
+  classTeacherOnly?: boolean;
 }
 
 const FORM_INIT = { class_name: '', section: '', academic_year_id: '' };
@@ -41,6 +43,7 @@ export function ClassSectionPicker({
   placeholder = '— select class —',
   disabled,
   compact,
+  classTeacherOnly,
 }: Props) {
   const qc = useQueryClient();
   const schoolId = useAuthStore((s) => s.schoolId) ?? '';
@@ -48,8 +51,8 @@ export function ClassSectionPicker({
   const [form, setForm] = useState(FORM_INIT);
 
   const { data: csData } = useQuery({
-    queryKey: ['class-sections'],
-    queryFn: () => getClassSections({ limit: 200 }),
+    queryKey: ['class-sections', classTeacherOnly],
+    queryFn: () => getClassSections({ limit: 200, ...(classTeacherOnly ? { class_teacher_only: true } : {}) }),
   });
   const sections: ClassSection[] = csData?.data ?? [];
 

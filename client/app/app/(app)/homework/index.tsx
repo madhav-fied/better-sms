@@ -4,11 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useRole } from '../../../hooks/useRole';
-import { useAuthStore } from '../../../store/auth';
 import { useParentChildStore } from '../../../store/parentChild';
 import { getHomework, createHomework } from '../../../lib/api/homework';
 import { getClassSections } from '../../../lib/api/core';
-import apiClient from '../../../lib/api/client';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
@@ -21,11 +19,10 @@ const EMPTY_FORM = { title: '', subject: '', description: '', due_date: '', clas
 
 export default function HomeworkScreen() {
   const { role } = useRole();
-  const { entityId } = useAuthStore();
   const { selectedChild } = useParentChildStore();
   const qc = useQueryClient();
   const isParent = role === 'parent';
-  const isTeacher = role === 'teacher' || role === 'admin';
+  const isTeacher = role === 'teacher';
 
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -40,22 +37,13 @@ export default function HomeworkScreen() {
     queryFn: () => getHomework(listParams),
   });
 
-  const { data: tsData } = useQuery({
-    queryKey: ['teacher-subjects-mine', entityId],
-    queryFn: () => apiClient.get('/teacher-subjects', { params: { staff_id: entityId, limit: 200 } }).then((r) => r.data?.data ?? []),
-    enabled: isTeacher && role === 'teacher',
-  });
+  // Teachers fetch only their homeroom classes
   const { data: csData } = useQuery({
-    queryKey: ['class-sections'],
-    queryFn: () => getClassSections({ limit: 200 }),
+    queryKey: ['class-sections', 'my-classes'],
+    queryFn: () => getClassSections({ limit: 200, class_teacher_only: true }),
     enabled: isTeacher,
   });
-
-  const allSections: ClassSection[] = csData?.data ?? [];
-  const myClassIds: string[] = role === 'teacher'
-    ? [...new Set<string>((tsData ?? []).map((ts: { class_section_id: string }) => ts.class_section_id))]
-    : allSections.map((cs) => cs.id);
-  const myClasses = allSections.filter((cs) => myClassIds.includes(cs.id));
+  const myClasses: ClassSection[] = csData?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: () => createHomework({
@@ -150,7 +138,7 @@ export default function HomeworkScreen() {
                     </TouchableOpacity>
                   ))}
                   {myClasses.length === 0 && (
-                    <Text style={{ fontSize: 13, color: '#9ca3af' }}>No classes assigned</Text>
+                    <Text style={{ fontSize: 13, color: '#9ca3af' }}>No homeroom class assigned</Text>
                   )}
                 </View>
               </View>
