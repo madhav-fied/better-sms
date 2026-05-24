@@ -83,7 +83,9 @@ function AdminDashboard() {
   const birthdays = useQuery({ queryKey: ['birthdays'], queryFn: getBirthdays });
 
   const s = summary.data?.data;
-  const birthdayList = Array.isArray(birthdays.data?.data) ? birthdays.data.data : [];
+  const birthdayList: Array<{ name: string; dob: string; type?: string }> = Array.isArray(birthdays.data?.data)
+    ? birthdays.data.data
+    : [];
 
   return (
     <div className="space-y-6">
