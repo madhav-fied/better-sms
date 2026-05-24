@@ -1,13 +1,13 @@
-"""Platform user indexes (seed data applied separately / via migration 003 run)
+"""Platform user indexes (seed data applied separately / via migration run)
 
-Revision ID: 003
-Revises: 002
+Revision ID: 005
+Revises: 004
 Create Date: 2026-05-23
 """
 from alembic import op
 
-revision = "003"
-down_revision = "002"
+revision = "005"
+down_revision = "004"
 branch_labels = None
 depends_on = None
 

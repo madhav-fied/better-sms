@@ -1,14 +1,14 @@
 """Parent entity: parents table, student_id/parent_id on parent_guardians
 
-Revision ID: 006
-Revises: 005
+Revision ID: 008
+Revises: 007
 Create Date: 2026-05-17 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "006"
-down_revision = "005"
+revision = "008"
+down_revision = "007"
 branch_labels = None
 depends_on = None
 

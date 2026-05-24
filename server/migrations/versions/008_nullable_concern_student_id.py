@@ -1,13 +1,13 @@
 """concerns: make student_id nullable
 
-Revision ID: 008
-Revises: 007
+Revision ID: 012
+Revises: 011
 Create Date: 2026-05-23 00:00:00.000000
 """
 from alembic import op
 
-revision = "008"
-down_revision = "007"
+revision = "012"
+down_revision = "011"
 branch_labels = None
 depends_on = None
 

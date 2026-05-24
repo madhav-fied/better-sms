@@ -8,15 +8,15 @@ Fixes discrepancies between SQLAlchemy models and the DB:
 - exam_schedule_entries: add results_published
 - teacher_subjects: add academic_year_id
 
-Revision ID: 005
-Revises: 004
+Revision ID: 007
+Revises: 006
 Create Date: 2026-05-17 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "005"
-down_revision = "004"
+revision = "007"
+down_revision = "006"
 branch_labels = None
 depends_on = None
 

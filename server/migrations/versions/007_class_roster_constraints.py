@@ -1,14 +1,14 @@
 """Class roster: unique constraint on teacher_subjects(school_id, class_section_id, subject, academic_year_id)
 
-Revision ID: 007
-Revises: 006
+Revision ID: 011
+Revises: 010
 Create Date: 2026-05-20 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "007"
-down_revision = "006"
+revision = "011"
+down_revision = "010"
 branch_labels = None
 depends_on = None
 
