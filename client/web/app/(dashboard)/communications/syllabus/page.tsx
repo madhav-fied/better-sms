@@ -1,27 +1,40 @@
 'use client';
+
 import { useQuery } from '@tanstack/react-query';
 import { getSyllabus } from '@/lib/api/communications';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
+import PageHeader from '@/components/layout/PageHeader';
+import EmptyState from '@/components/enterprise/EmptyState';
 
 export default function SyllabusPage() {
   const { data, isLoading } = useQuery({ queryKey: ['syllabus'], queryFn: () => getSyllabus({ limit: 30 }) });
   const items = data?.data ?? [];
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Syllabus</h1>
-      <div className="space-y-2">
+    <div className="space-y-6">
+      <PageHeader title="Syllabus" description="Browse syllabus documents by subject and class." />
+
+      <div className="space-y-3">
         {isLoading
-          ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16" />)
+          ? Array(3)
+              .fill(0)
+              .map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
           : items.map((s: { id: string; subject_name: string; class_name: string; content: string; created_at: string }) => (
-              <div key={s.id} className="rounded-lg border bg-white p-4">
-                <p className="font-medium text-sm">{s.subject_name} — {s.class_name}</p>
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{s.content}</p>
-                <p className="text-xs text-gray-400 mt-1">{s.created_at?.split('T')[0]}</p>
-              </div>
+              <Link
+                key={s.id}
+                href={`/communications/syllabus/${s.id}`}
+                className="block rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-colors hover:border-slate-300"
+              >
+                <p className="font-semibold text-slate-900">
+                  {s.subject_name} — {s.class_name}
+                </p>
+                <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.content}</p>
+                <p className="mt-2 text-xs text-slate-400">{s.created_at?.split('T')[0]}</p>
+              </Link>
             ))}
         {!isLoading && items.length === 0 && (
-          <p className="text-center text-gray-400 py-8">No syllabus entries</p>
+          <EmptyState title="No syllabus entries" description="Syllabus documents will appear here when published." />
         )}
       </div>
     </div>

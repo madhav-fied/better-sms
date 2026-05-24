@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
     auth,
+    auth_password,
     users,
     subject,
     core,
@@ -24,9 +25,9 @@ from app.routers import (
 )
 
 app = FastAPI(
-    title="SKEducations SMS API",
+    title="Edulink SMS API",
     version="1.0.0",
-    description="School Management System API for SKEducations",
+    description="School Management System API for Edulink",
 )
 
 app.add_middleware(
@@ -40,6 +41,7 @@ app.add_middleware(
 PREFIX = "/api/v1"
 
 app.include_router(auth.router, prefix=PREFIX, tags=["Auth"])
+app.include_router(auth_password.router, prefix=PREFIX, tags=["Auth"])
 app.include_router(users.router, prefix=PREFIX, tags=["Users"])
 app.include_router(subject.router, prefix=PREFIX, tags=["Subjects"])
 app.include_router(core.router, prefix=PREFIX, tags=["Core"])
@@ -62,4 +64,4 @@ app.include_router(class_roster.router, prefix=PREFIX, tags=["Class Roster"])
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "SKEducations SMS"}
+    return {"status": "ok", "service": "Edulink SMS"}

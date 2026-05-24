@@ -1,11 +1,23 @@
 'use client';
+
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { markStaffAttendance } from '@/lib/api/attendance';
 import { getStaff } from '@/lib/api/staff';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Staff } from '@/types/staff';
+import PageHeader from '@/components/layout/PageHeader';
+import DataSection from '@/components/enterprise/DataSection';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function StaffAttendancePage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -25,48 +37,66 @@ export default function StaffAttendancePage() {
   });
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Staff Attendance</h1>
-      <div>
-        <label className="text-xs text-gray-500 block mb-1">Date</label>
-        <input type="date" className="border rounded px-3 py-2 text-sm" value={date} onChange={(e) => setDate(e.target.value)} />
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Staff attendance" description="Record daily attendance for all staff members." />
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="space-y-1.5 max-w-xs">
+          <Label htmlFor="staff-date" className="text-slate-700">
+            Date
+          </Label>
+          <input
+            id="staff-date"
+            type="date"
+            className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+      </section>
+
       {staff.length > 0 && (
-        <div className="rounded-lg border bg-white overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-              <tr>
-                <th className="px-4 py-3 text-left">Staff</th>
-                <th className="px-4 py-3 text-left">Role</th>
-                <th className="px-4 py-3 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+        <DataSection title="Staff members">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-200 hover:bg-transparent">
+                <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Staff
+                </TableHead>
+                <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Role
+                </TableHead>
+                <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Status
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {staff.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-3">{s.name}</td>
-                  <td className="px-4 py-3 text-gray-500 capitalize">{s.role}</td>
-                  <td className="px-4 py-3">
+                <TableRow key={s.id} className="border-slate-200">
+                  <TableCell className="px-6 py-4 font-medium text-slate-900">{s.name}</TableCell>
+                  <TableCell className="px-6 py-4 capitalize text-slate-600">{s.role}</TableCell>
+                  <TableCell className="px-6 py-4">
                     <select
-                      className="border rounded px-2 py-1 text-sm"
+                      className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
                       value={records[s.id] ?? 'present'}
                       onChange={(e) => setRecords((r) => ({ ...r, [s.id]: e.target.value }))}
                     >
                       <option value="present">Present</option>
                       <option value="absent">Absent</option>
-                      <option value="leave">On Leave</option>
+                      <option value="leave">On leave</option>
                     </select>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-          <div className="p-4 border-t">
+            </TableBody>
+          </Table>
+          <div className="border-t border-slate-200 p-6">
             <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-              {mutation.isPending ? 'Saving…' : 'Submit'}
+              {mutation.isPending ? 'Saving…' : 'Submit attendance'}
             </Button>
           </div>
-        </div>
+        </DataSection>
       )}
     </div>
   );

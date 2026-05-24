@@ -1,4 +1,5 @@
 'use client';
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/client';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +7,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { storage } from '@/lib/storage';
 import { toast } from 'sonner';
+import PageHeader from '@/components/layout/PageHeader';
+import DataSection from '@/components/enterprise/DataSection';
+import EmptyState from '@/components/enterprise/EmptyState';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function SchoolsPage() {
   const qc = useQueryClient();
@@ -23,45 +35,74 @@ export default function SchoolsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Schools</h1>
-      <p className="text-sm text-gray-500">Select a school to manage its data (superadmin).</p>
-      <div className="rounded-lg border bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-            <tr>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Branch</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+    <div className="space-y-6">
+      <PageHeader
+        title="Schools"
+        description="Select a school to manage its data. Superadmin can switch between schools."
+      />
+
+      <DataSection title="All schools">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-slate-200 hover:bg-transparent">
+              <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Name
+              </TableHead>
+              <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Branch
+              </TableHead>
+              <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Status
+              </TableHead>
+              <TableHead className="bg-slate-50 px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading
-              ? Array(3).fill(0).map((_, i) => (
-                  <tr key={i}><td colSpan={4} className="px-4 py-3"><Skeleton className="h-4" /></td></tr>
-                ))
+              ? Array(3)
+                  .fill(0)
+                  .map((_, i) => (
+                    <TableRow key={i} className="border-slate-200">
+                      <TableCell colSpan={4} className="px-6 py-4">
+                        <Skeleton className="h-4 w-full" />
+                      </TableCell>
+                    </TableRow>
+                  ))
               : schools.map((s: { id: string; name: string; branch_name?: string; is_active: boolean }) => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{s.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{s.branch_name ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={s.is_active ? 'default' : 'secondary'}>{s.is_active ? 'Active' : 'Inactive'}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
+                  <TableRow key={s.id} className="border-slate-200">
+                    <TableCell className="px-6 py-4 font-medium text-slate-900">{s.name}</TableCell>
+                    <TableCell className="px-6 py-4 text-slate-600">{s.branch_name ?? '—'}</TableCell>
+                    <TableCell className="px-6 py-4">
+                      <Badge
+                        variant={s.is_active ? 'default' : 'secondary'}
+                        className="rounded-md border border-slate-200 px-2.5 py-0.5"
+                      >
+                        {s.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-right">
                       <Button
                         size="sm"
                         variant={activeId === s.id ? 'default' : 'outline'}
                         onClick={() => selectSchool(s.id)}
                       >
-                        {activeId === s.id ? 'Selected' : 'Select'}
+                        {activeId === s.id ? 'Selected' : 'Select school'}
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-          </tbody>
-        </table>
-      </div>
+            {!isLoading && schools.length === 0 && (
+              <TableRow className="border-slate-200 hover:bg-transparent">
+                <TableCell colSpan={4}>
+                  <EmptyState title="No schools" description="No schools are registered in the system." />
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </DataSection>
     </div>
   );
 }

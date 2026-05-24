@@ -15,11 +15,26 @@ export const getConcerns = (params?: Record<string, unknown>) =>
 export const getConcern = (id: string) =>
   apiClient.get(`/communications/concerns/${id}`).then((r) => r.data);
 
-export const replyConcern = (id: string, message: string) =>
-  apiClient.post(`/communications/concerns/${id}/messages`, { message }).then((r) => r.data);
+export const createConcern = (data: unknown) =>
+  apiClient.post('/communications/concerns', data).then((r) => r.data);
+
+export const replyConcern = (id: string, body: string) =>
+  apiClient.post(`/communications/concerns/${id}/messages`, { body }).then((r) => r.data);
 
 export const getSyllabus = (params?: Record<string, unknown>) =>
   apiClient.get('/communications/syllabus', { params }).then((r) => r.data);
 
+export const getSyllabusItem = (id: string) =>
+  apiClient.get(`/communications/syllabus/${id}`).then((r) => r.data);
+
+export const createSyllabus = (data: unknown) =>
+  apiClient.post('/communications/syllabus', data).then((r) => r.data);
+
 export const getNewsletters = (params?: Record<string, unknown>) =>
   apiClient.get('/communications/newsletters', { params }).then((r) => r.data);
+
+export const getNewsletter = (id: string) =>
+  apiClient.get(`/communications/newsletters/${id}`).then((r) => r.data);
+
+export const createNewsletter = (data: unknown) =>
+  apiClient.post('/communications/newsletters', data).then((r) => r.data);

@@ -327,7 +327,6 @@ async def create_concern(
     user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
-    print(body)
     role = user["role"]
     if role not in ("superadmin", "admin", "parent"):
         raise HTTPException(status_code=403, detail="Only parents or admins can submit concerns")

@@ -1,13 +1,33 @@
 'use client';
+
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { markStudentAttendance } from '@/lib/api/attendance';
 import apiClient from '@/lib/api/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/layout/PageHeader';
+import DataSection from '@/components/enterprise/DataSection';
+import LabeledSelect from '@/components/enterprise/LabeledSelect';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
-interface ClassSection { id: string; class_name: string; section: string }
-interface StudentRow { id: string; name: string }
+interface ClassSection {
+  id: string;
+  class_name: string;
+  section: string;
+}
+interface StudentRow {
+  id: string;
+  name: string;
+}
 
 export default function StudentAttendancePage() {
   const [classSectionId, setClassSectionId] = useState('');
@@ -29,7 +49,9 @@ export default function StudentAttendancePage() {
 
   const toggleAll = (status: 'present' | 'absent') => {
     const next: Record<string, 'present' | 'absent'> = {};
-    students.forEach((s) => { next[s.id] = status; });
+    students.forEach((s) => {
+      next[s.id] = status;
+    });
     setRecords(next);
   };
 
@@ -45,69 +67,91 @@ export default function StudentAttendancePage() {
   });
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Mark Student Attendance</h1>
-      <div className="flex gap-3 flex-wrap items-end">
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Class</label>
-          <select
-            className="border rounded px-3 py-2 text-sm"
+    <div className="space-y-6">
+      <PageHeader title="Mark student attendance" description="Record daily attendance for a class section." />
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-end gap-4">
+          <LabeledSelect
+            label="Class section"
             value={classSectionId}
-            onChange={(e) => { setClassSectionId(e.target.value); setRecords({}); }}
-          >
-            <option value="">— select class —</option>
-            {(sections ?? []).map((c: ClassSection) => (
-              <option key={c.id} value={c.id}>{c.class_name} {c.section}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Date</label>
-          <input type="date" className="border rounded px-3 py-2 text-sm" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        {students.length > 0 && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => toggleAll('present')}>All Present</Button>
-            <Button variant="outline" size="sm" onClick={() => toggleAll('absent')}>All Absent</Button>
+            onChange={(e) => {
+              setClassSectionId(e.target.value);
+              setRecords({});
+            }}
+            options={(sections ?? []).map((c: ClassSection) => ({
+              value: c.id,
+              label: `${c.class_name} ${c.section}`,
+            }))}
+            placeholder="Select class"
+            className="min-w-[200px]"
+          />
+          <div className="space-y-1.5">
+            <Label htmlFor="att-date" className="text-slate-700">
+              Date
+            </Label>
+            <input
+              id="att-date"
+              type="date"
+              className="block rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
-        )}
-      </div>
+          {students.length > 0 && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => toggleAll('present')}>
+                All present
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => toggleAll('absent')}>
+                All absent
+              </Button>
+            </div>
+          )}
+        </div>
+      </section>
 
       {students.length > 0 && (
-        <div className="rounded-lg border bg-white overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-              <tr>
-                <th className="px-4 py-3 text-left">Student</th>
-                <th className="px-4 py-3 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+        <DataSection title="Students">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-200 hover:bg-transparent">
+                <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Student
+                </TableHead>
+                <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Status
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {students.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-3">{s.name}</td>
-                  <td className="px-4 py-3">
+                <TableRow key={s.id} className="border-slate-200">
+                  <TableCell className="px-6 py-4 font-medium text-slate-900">{s.name}</TableCell>
+                  <TableCell className="px-6 py-4">
                     <select
-                      className="border rounded px-2 py-1 text-sm"
+                      className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
                       value={records[s.id] ?? ''}
-                      onChange={(e) => setRecords((r) => ({ ...r, [s.id]: e.target.value as 'present' | 'absent' | 'leave' }))}
+                      onChange={(e) =>
+                        setRecords((r) => ({ ...r, [s.id]: e.target.value as 'present' | 'absent' | 'leave' }))
+                      }
                     >
-                      <option value="">—</option>
+                      <option value="">Select status</option>
                       <option value="present">Present</option>
                       <option value="absent">Absent</option>
                       <option value="leave">Leave</option>
                     </select>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-          <div className="p-4 border-t">
+            </TableBody>
+          </Table>
+          <div className="border-t border-slate-200 p-6">
             <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-              {mutation.isPending ? 'Saving…' : 'Submit Attendance'}
+              {mutation.isPending ? 'Saving…' : 'Submit attendance'}
             </Button>
           </div>
-        </div>
+        </DataSection>
       )}
     </div>
   );

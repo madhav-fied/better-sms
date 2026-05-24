@@ -7,6 +7,7 @@ from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin, require_teacher
 from app.models.leave import Leave
 from app.models.attendance import StudentAttendanceRecord
+from app.models.admission import ParentGuardian
 from app.models.student import Student
 from app.schemas.leave import LeaveCreate, LeaveUpdate, LeaveReviewIn, LeaveOut
 from app.schemas.common import Response, ok
@@ -92,6 +93,26 @@ async def create_leave(
     user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
+    role = user["role"]
+    if role not in ("superadmin", "admin"):
+        entity_id = user["entity_id"]
+        if body.entity_type == "student":
+            if role == "student" and body.entity_id != entity_id:
+                raise HTTPException(status_code=403, detail="Cannot apply leave for another student")
+            if role == "parent":
+                pg_res = await db.execute(
+                    select(ParentGuardian).where(
+                        ParentGuardian.parent_id == entity_id,
+                        ParentGuardian.student_id == body.entity_id,
+                    )
+                )
+                if not pg_res.scalar_one_or_none():
+                    raise HTTPException(status_code=403, detail="Cannot apply leave for this student")
+            elif role not in ("student", "parent"):
+                raise HTTPException(status_code=403, detail="Not allowed to apply student leave")
+        elif body.entity_type == "staff" and body.entity_id != entity_id:
+            raise HTTPException(status_code=403, detail="Cannot apply leave for another staff member")
+
     leave = Leave(school_id=user["school_id"], applied_by=user["user_id"], **body.model_dump())
     db.add(leave)
     await db.flush()

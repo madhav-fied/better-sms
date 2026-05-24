@@ -21,3 +21,9 @@ export const createStaff = (data: unknown) =>
 
 export const updateStaff = (id: string, data: unknown) =>
   apiClient.put(`/staff/${id}`, data).then((r) => r.data);
+
+export const upsertJobDetail = (staffId: string, data: unknown) =>
+  apiClient.put(`/staff/${staffId}/job-detail`, data).then((r) => r.data);
+
+export const getTeacherSubjects = (staffId: string, params?: Record<string, unknown>) =>
+  apiClient.get('/teacher-subjects', { params: { staff_id: staffId, ...params } }).then((r) => r.data);

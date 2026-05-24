@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { createExam } from '@/lib/api/exams';
@@ -8,6 +9,9 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useActiveAY } from '@/hooks/useActiveAY';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionLink from '@/components/enterprise/ActionLink';
+import LabeledSelect from '@/components/enterprise/LabeledSelect';
 
 export default function NewExamPage() {
   const router = useRouter();
@@ -23,37 +27,57 @@ export default function NewExamPage() {
         exam_type: form.exam_type,
       });
     },
-    onSuccess: (res) => { toast.success('Exam created'); router.push(`/exams/${res.data?.id}`); },
+    onSuccess: (res) => {
+      toast.success('Exam created');
+      router.push(`/exams/${res.data?.id}`);
+    },
     onError: () => toast.error('Failed — set an active academic year in Settings'),
   });
 
   return (
-    <div className="max-w-sm space-y-4">
-      <h1 className="text-xl font-semibold">New Exam</h1>
-      <div className="rounded-lg border bg-white p-5 space-y-4">
-        <div className="space-y-1.5">
-          <Label>Name</Label>
-          <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Type</Label>
-          <select
-            className="w-full border rounded-md px-3 py-2 text-sm"
+    <div className="space-y-6 max-w-sm">
+      <PageHeader
+        title="New exam"
+        description="Create an exam term for the active academic year."
+        actions={
+          <ActionLink href="/exams" variant="outline">
+            Back to exams
+          </ActionLink>
+        }
+      />
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="exam-name" className="text-slate-700">
+              Name
+            </Label>
+            <Input
+              id="exam-name"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="border-slate-200"
+            />
+          </div>
+          <LabeledSelect
+            label="Type"
             value={form.exam_type}
             onChange={(e) => setForm((f) => ({ ...f, exam_type: e.target.value }))}
-          >
-            <option value="unit_test">Unit test</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="half_yearly">Half yearly</option>
-            <option value="annual">Annual</option>
-            <option value="other">Other</option>
-          </select>
+            options={[
+              { value: 'unit_test', label: 'Unit test' },
+              { value: 'monthly', label: 'Monthly' },
+              { value: 'quarterly', label: 'Quarterly' },
+              { value: 'half_yearly', label: 'Half yearly' },
+              { value: 'annual', label: 'Annual' },
+              { value: 'other', label: 'Other' },
+            ]}
+            placeholder="Select type"
+          />
         </div>
-        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.name}>
-          {mutation.isPending ? 'Creating…' : 'Create Exam'}
+        <Button className="mt-6" onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.name}>
+          {mutation.isPending ? 'Creating…' : 'Create exam'}
         </Button>
-      </div>
+      </section>
     </div>
   );
 }

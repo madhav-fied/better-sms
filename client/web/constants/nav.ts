@@ -9,7 +9,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Schools', href: '/schools', roles: ['superadmin'] },
-  { label: 'Dashboard', href: '/dashboard', roles: ['superadmin', 'admin', 'teacher', 'staff', 'parent'] },
+  { label: 'Dashboard', href: '/dashboard', roles: ['superadmin', 'admin', 'teacher', 'staff', 'parent', 'student'] },
   {
     label: 'Students', href: '/students', roles: ['admin', 'superadmin'],
     children: [
@@ -24,10 +24,12 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'Students', href: '/attendance/students' },
       { label: 'Staff', href: '/attendance/staff' },
+      { label: 'History', href: '/attendance/students/history' },
     ],
   },
-  { label: 'Homework', href: '/homework', roles: ['admin', 'superadmin', 'teacher'] },
-  { label: 'Leaves', href: '/leaves', roles: ['admin', 'superadmin', 'teacher', 'staff'] },
+  { label: 'Homework', href: '/homework', roles: ['admin', 'superadmin', 'teacher', 'student', 'parent'] },
+  { label: 'Results', href: '/results', roles: ['admin', 'superadmin', 'teacher', 'student', 'parent'] },
+  { label: 'Leaves', href: '/leaves', roles: ['admin', 'superadmin', 'teacher', 'staff', 'student'] },
   {
     label: 'Communications', href: '/communications/notices', roles: ['admin', 'superadmin', 'teacher'],
     children: [
@@ -37,14 +39,19 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Concerns', href: '/communications/concerns' },
     ],
   },
-  { label: 'Timetable', href: '/timetable', roles: ['admin', 'superadmin', 'teacher'] },
+  { label: 'Timetable', href: '/timetable', roles: ['admin', 'superadmin', 'teacher', 'parent', 'student'] },
   { label: 'Exams', href: '/exams', roles: ['admin', 'superadmin', 'teacher'] },
-  { label: 'Results', href: '/results', roles: ['admin', 'superadmin', 'teacher'] },
   {
-    label: 'Notices', href: '/communications/notices', roles: ['parent'],
+    label: 'Notices', href: '/communications/notices', roles: ['parent', 'student'],
   },
   {
-    label: 'Concerns', href: '/communications/concerns', roles: ['parent'],
+    label: 'Concerns',
+    href: '/communications/concerns',
+    roles: ['parent'],
+    children: [
+      { label: 'My Concerns', href: '/communications/concerns' },
+      { label: 'Raise Concern', href: '/communications/concerns/new' },
+    ],
   },
   {
     label: 'Settings', href: '/settings/academic-years', roles: ['admin', 'superadmin'],
@@ -53,6 +60,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Class Sections', href: '/settings/class-sections' },
       { label: 'Subjects', href: '/settings/subjects' },
       { label: 'Users', href: '/settings/users' },
+      { label: 'School Settings', href: '/settings/school' },
     ],
   },
 ];

@@ -1,4 +1,6 @@
-from datetime import datetime
+from datetime import datetime, date as date_type
+from typing import Optional
+import calendar
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -8,6 +10,7 @@ from app.deps import get_current_user, CurrentUser, require_admin, require_teach
 from app.models.attendance import StudentAttendanceRecord, StaffAttendanceRecord
 from app.models.admission import ParentGuardian
 from app.models.core import ClassSection
+from app.models.student import Student
 from app.schemas.attendance import (
     StudentAttendanceMarkIn, StudentAttendanceUpdate, StudentAttendanceOut,
     StaffAttendanceMarkIn, StaffAttendanceUpdate, StaffAttendanceOut,
@@ -101,10 +104,14 @@ async def mark_student_attendance(
 
 
 @router.get("/attendance/students", response_model=Response)
+@router.get("/attendance/history/students", response_model=Response)
 async def list_student_attendance(
     class_section_id: str = Query(None),
     academic_year_id: str = Query(None),
-    date: str = Query(None),
+    date: Optional[date_type] = Query(None),
+    date_from: Optional[date_type] = Query(None),
+    date_to: Optional[date_type] = Query(None),
+    month: Optional[str] = Query(None),
     student_id: str = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -162,13 +169,42 @@ async def list_student_attendance(
         q = q.where(StudentAttendanceRecord.academic_year_id == academic_year_id)
     if date:
         q = q.where(StudentAttendanceRecord.date == date)
+    elif month:
+        try:
+            year, mon = map(int, month.split("-"))
+            q = q.where(
+                StudentAttendanceRecord.date >= date_type(year, mon, 1),
+                StudentAttendanceRecord.date <= date_type(year, mon, calendar.monthrange(year, mon)[1]),
+            )
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=422, detail="month must be YYYY-MM")
+    else:
+        if date_from:
+            q = q.where(StudentAttendanceRecord.date >= date_from)
+        if date_to:
+            q = q.where(StudentAttendanceRecord.date <= date_to)
     if student_id and role not in ("parent", "student"):
         q = q.where(StudentAttendanceRecord.student_id == student_id)
 
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     offset = (page - 1) * limit
     items = (await db.execute(q.order_by(StudentAttendanceRecord.date.desc()).offset(offset).limit(limit))).scalars().all()
-    return ok([StudentAttendanceOut.model_validate(r).model_dump() for r in items], meta={"page": page, "limit": limit, "total": total})
+
+    student_ids = list({r.student_id for r in items})
+    name_map: dict[str, str] = {}
+    if student_ids:
+        students_res = await db.execute(select(Student).where(Student.id.in_(student_ids)))
+        name_map = {
+            s.id: f"{s.first_name} {s.last_name or ''}".strip()
+            for s in students_res.scalars().all()
+        }
+
+    rows = []
+    for r in items:
+        row = StudentAttendanceOut.model_validate(r).model_dump()
+        row["student_name"] = name_map.get(r.student_id, "")
+        rows.append(row)
+    return ok(rows, meta={"page": page, "limit": limit, "total": total})
 
 
 @router.put("/attendance/students/{record_id}", response_model=Response)
@@ -300,7 +336,7 @@ async def mark_staff_attendance(
 @router.get("/attendance/staff", response_model=Response)
 async def list_staff_attendance(
     staff_id: str = Query(None),
-    date: str = Query(None),
+    date: Optional[date] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),

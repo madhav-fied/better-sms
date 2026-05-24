@@ -39,8 +39,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (checking) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-gray-400">
-        Loading...
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="rounded-xl border border-slate-200 bg-white px-8 py-6 shadow-sm text-center">
+          <p className="text-sm font-medium text-slate-900">Loading your workspace…</p>
+          <p className="mt-1 text-xs text-slate-500">Please wait a moment</p>
+        </div>
       </div>
     );
   }

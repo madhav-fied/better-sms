@@ -1,12 +1,17 @@
 'use client';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getConcern, replyConcern } from '@/lib/api/communications';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { use } from 'react';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionLink from '@/components/enterprise/ActionLink';
+import DataSection from '@/components/enterprise/DataSection';
 
 export default function ConcernDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -15,6 +20,8 @@ export default function ConcernDetailPage({ params }: { params: Promise<{ id: st
 
   const { data, isLoading } = useQuery({ queryKey: ['concern', id], queryFn: () => getConcern(id) });
   const c = data?.data;
+  const messages: { id: string; body: string; sender_type: string; sender_name?: string; created_at: string }[] =
+    c?.messages ?? [];
 
   const replyMutation = useMutation({
     mutationFn: () => replyConcern(id, reply),
@@ -26,39 +33,65 @@ export default function ConcernDetailPage({ params }: { params: Promise<{ id: st
     onError: () => toast.error('Failed to send reply'),
   });
 
-  if (isLoading) return <Skeleton className="h-48 w-full" />;
-  if (!c) return <p className="text-gray-400">Concern not found</p>;
+  if (isLoading) return <Skeleton className="h-48 w-full rounded-xl" />;
+  if (!c) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <p className="text-slate-900">Concern not found</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 max-w-xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{c.subject}</h1>
-        <Badge variant={c.status === 'resolved' ? 'secondary' : 'default'}>{c.status}</Badge>
-      </div>
-      <div className="rounded-lg border bg-white p-4 space-y-3">
-        <div className="text-sm bg-blue-50 rounded p-3">
-          <p className="text-xs text-gray-400 mb-1">Original — {c.created_at?.split('T')[0]}</p>
-          <p>{c.message}</p>
+    <div className="space-y-6 max-w-2xl">
+      <PageHeader
+        title={c.subject}
+        description={`Category: ${c.category} · ${c.created_at?.split('T')[0]}`}
+        actions={
+          <>
+            <Badge className="rounded-md border border-slate-200 px-2.5 py-0.5 capitalize">{c.status}</Badge>
+            <ActionLink href="/communications/concerns" variant="outline">
+              Back to concerns
+            </ActionLink>
+          </>
+        }
+      />
+
+      <DataSection title="Conversation">
+        <div className="space-y-3 p-6">
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              className={`rounded-xl border p-4 text-sm ${
+                m.sender_type === 'parent' ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-slate-50'
+              }`}
+            >
+              <p className="mb-1 text-xs text-slate-500 capitalize">
+                {m.sender_name ?? m.sender_type} — {m.created_at?.split('T')[0]}
+              </p>
+              <p className="leading-relaxed text-slate-800">{m.body}</p>
+            </div>
+          ))}
         </div>
-        {(c.replies ?? []).map((r: { id: string; message: string; created_by_role: string; created_at: string }) => (
-          <div key={r.id} className="text-sm bg-gray-50 rounded p-3">
-            <p className="text-xs text-gray-400 mb-1 capitalize">{r.created_by_role} — {r.created_at?.split('T')[0]}</p>
-            <p>{r.message}</p>
-          </div>
-        ))}
-      </div>
-      <div className="space-y-2">
-        <textarea
-          className="w-full border rounded px-3 py-2 text-sm"
-          rows={3}
-          placeholder="Write a reply…"
-          value={reply}
-          onChange={(e) => setReply(e.target.value)}
-        />
-        <Button onClick={() => replyMutation.mutate()} disabled={replyMutation.isPending || !reply}>
-          {replyMutation.isPending ? 'Sending…' : 'Send Reply'}
+      </DataSection>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="space-y-1.5">
+          <Label htmlFor="reply" className="text-slate-700">
+            Your reply
+          </Label>
+          <textarea
+            id="reply"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            rows={4}
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+          />
+        </div>
+        <Button className="mt-4" onClick={() => replyMutation.mutate()} disabled={replyMutation.isPending || !reply}>
+          {replyMutation.isPending ? 'Sending…' : 'Send reply'}
         </Button>
-      </div>
+      </section>
     </div>
   );
 }

@@ -159,7 +159,23 @@ async def list_students(
     user: dict = Depends(get_current_user),
 ):
     school_id = user["school_id"]
+    if not school_id:
+        raise HTTPException(status_code=400, detail="School context required")
     q = select(Student).where(Student.school_id == school_id)
+
+    if user["role"] == "student" and user.get("entity_id"):
+        q = q.where(Student.id == user["entity_id"])
+    elif user["role"] == "parent" and user.get("entity_id"):
+        pg_res = await db.execute(
+            select(ParentGuardian.student_id).where(
+                ParentGuardian.parent_id == user["entity_id"],
+                ParentGuardian.student_id.isnot(None),
+            )
+        )
+        ward_ids = list({row[0] for row in pg_res.fetchall()})
+        if not ward_ids:
+            return ok([], meta={"page": page, "limit": limit, "total": 0})
+        q = q.where(Student.id.in_(ward_ids))
 
     if parent_id:
         user_res = await db.execute(

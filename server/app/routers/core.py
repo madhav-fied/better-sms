@@ -135,6 +135,23 @@ async def list_academic_years(
     return ok([AcademicYearOut.model_validate(a).model_dump() for a in items], meta={"page": page, "limit": limit, "total": total})
 
 
+@router.get("/academic-years/active", response_model=Response)
+async def get_active_academic_year(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    sid = user.get("school_id")
+    if not sid:
+        raise HTTPException(status_code=400, detail="School context required")
+    result = await db.execute(
+        select(AcademicYear).where(AcademicYear.school_id == sid, AcademicYear.is_active == True)
+    )
+    ay = result.scalar_one_or_none()
+    if not ay:
+        raise HTTPException(status_code=404, detail="No active academic year")
+    return ok(AcademicYearOut.model_validate(ay).model_dump())
+
+
 @router.get("/academic-years/{ay_id}", response_model=Response)
 async def get_academic_year(ay_id: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     result = await db.execute(select(AcademicYear).where(AcademicYear.id == ay_id))
@@ -163,13 +180,7 @@ async def update_academic_year(
     return ok(AcademicYearOut.model_validate(ay).model_dump())
 
 
-@router.post("/academic-years/{ay_id}/activate", response_model=Response)
-async def activate_academic_year(
-    ay_id: str,
-    user: CurrentUser,
-    _: None = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
+async def _activate_academic_year(db: AsyncSession, ay_id: str) -> AcademicYear:
     result = await db.execute(select(AcademicYear).where(AcademicYear.id == ay_id))
     ay = result.scalar_one_or_none()
     if not ay:
@@ -180,6 +191,28 @@ async def activate_academic_year(
     ay.is_active = True
     await db.flush()
     await db.refresh(ay)
+    return ay
+
+
+@router.post("/academic-years/{ay_id}/activate", response_model=Response)
+async def activate_academic_year(
+    ay_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    ay = await _activate_academic_year(db, ay_id)
+    return ok(AcademicYearOut.model_validate(ay).model_dump())
+
+
+@router.post("/academic-years/{ay_id}/set-active", response_model=Response)
+async def set_active_academic_year_alias(
+    ay_id: str,
+    user: CurrentUser,
+    _: None = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    ay = await _activate_academic_year(db, ay_id)
     return ok(AcademicYearOut.model_validate(ay).model_dump())
 
 

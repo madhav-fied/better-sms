@@ -1,22 +1,45 @@
 'use client';
+
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth';
 import { getStaffMember, getTeacherSubjects } from '@/lib/api/staff';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getSchool } from '@/lib/api/schools';
+import { getStudent } from '@/lib/api/students';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import PageHeader from '@/components/layout/PageHeader';
+import DataSection from '@/components/enterprise/DataSection';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function ProfilePage() {
-  const { role, entityId, schoolName, schoolBranchName, schoolId } = useAuthStore();
-
-  const schoolDisplay = schoolBranchName ? `${schoolName} — ${schoolBranchName}` : schoolName;
+  const { role, entityId, schoolId, userId } = useAuthStore();
 
   const isStaff = role === 'teacher' || role === 'staff';
+  const isStudent = role === 'student';
+
+  const schoolQuery = useQuery({
+    queryKey: ['school-profile', schoolId],
+    queryFn: () => getSchool(schoolId!),
+    enabled: !!schoolId,
+  });
 
   const staffQuery = useQuery({
     queryKey: ['staff-self', entityId],
     queryFn: () => getStaffMember(entityId!).then((r) => r.data),
     enabled: isStaff && !!entityId,
+  });
+
+  const studentQuery = useQuery({
+    queryKey: ['student-self', entityId],
+    queryFn: () => getStudent(entityId!),
+    enabled: isStudent && !!entityId,
   });
 
   const teacherSubjectsQuery = useQuery({
@@ -26,126 +49,135 @@ export default function ProfilePage() {
   });
 
   const staff = staffQuery.data;
+  const student = studentQuery.data?.data;
+  const school = schoolQuery.data?.data;
   const teacherSubjects: { id: string; subject: string; class_name?: string; section?: string }[] =
     teacherSubjectsQuery.data ?? [];
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h1 className="text-xl font-semibold">My Profile</h1>
+      <PageHeader title="My profile" description="Your account details and school information." />
 
-      {/* School */}
-      {schoolDisplay && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-gray-500 uppercase tracking-wide">School</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-base font-semibold text-gray-900">{schoolDisplay}</p>
-            {schoolId && <p className="text-xs text-gray-400 mt-0.5">{schoolId}</p>}
-          </CardContent>
-        </Card>
+      {school && (
+        <DataSection title="School">
+          <dl className="divide-y divide-slate-200 px-6">
+            <DetailRow label="School name" value={school.name} />
+            {school.branch_name && <DetailRow label="Branch" value={school.branch_name} />}
+            {school.phone && <DetailRow label="Phone" value={school.phone} />}
+            {school.email && <DetailRow label="Email" value={school.email} />}
+          </dl>
+        </DataSection>
       )}
 
-      {/* Staff / Teacher */}
+      <DataSection title="Account">
+        <dl className="divide-y divide-slate-200 px-6">
+          <DetailRow label="Role" value={role ?? '—'} />
+          {userId && <DetailRow label="User ID" value={userId} />}
+        </dl>
+      </DataSection>
+
+      {isStudent && (
+        <DataSection title="Student details">
+          {studentQuery.isLoading ? (
+            <div className="p-6">
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : student ? (
+            <dl className="divide-y divide-slate-200 px-6">
+              <DetailRow label="Name" value={student.name} />
+              <DetailRow label="Roll number" value={student.roll_number} />
+              <DetailRow label="Class" value={`${student.class_name} ${student.section}`} />
+              {student.phone && <DetailRow label="Phone" value={student.phone} />}
+              {student.dob && <DetailRow label="Date of birth" value={student.dob} />}
+            </dl>
+          ) : (
+            <p className="px-6 py-8 text-sm text-slate-500">No student record linked</p>
+          )}
+        </DataSection>
+      )}
+
       {isStaff && (
         <>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs text-gray-500 uppercase tracking-wide">Staff Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {staffQuery.isLoading ? (
-                <Skeleton className="h-16" />
-              ) : staff ? (
-                <div className="space-y-2">
-                  <p className="text-base font-semibold text-gray-900">{staff.name}</p>
-                  <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
-                    {staff.designation && <Row label="Designation" value={staff.designation} />}
-                    {staff.category && (
-                      <Row label="Category" value={staff.category.charAt(0).toUpperCase() + staff.category.slice(1)} />
-                    )}
-                    {staff.emp_code && <Row label="Emp. Code" value={staff.emp_code} />}
-                    {staff.mobile && <Row label="Mobile" value={staff.mobile} />}
-                    {staff.email && <Row label="Email" value={staff.email} />}
-                  </dl>
+          <DataSection title="Staff details">
+            {staffQuery.isLoading ? (
+              <div className="p-6">
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : staff ? (
+              <dl className="divide-y divide-slate-200 px-6">
+                <DetailRow label="Name" value={staff.name} />
+                {staff.designation && <DetailRow label="Designation" value={staff.designation} />}
+                {staff.category && (
+                  <DetailRow label="Category" value={staff.category.charAt(0).toUpperCase() + staff.category.slice(1)} />
+                )}
+                {staff.emp_code && <DetailRow label="Employee code" value={staff.emp_code} />}
+                {staff.mobile && <DetailRow label="Mobile" value={staff.mobile} />}
+                {staff.email && <DetailRow label="Email" value={staff.email} />}
+                <div className="py-4">
+                  <Badge variant={staff.is_active ? 'default' : 'secondary'} className="rounded-md border border-slate-200">
+                    {staff.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-400">No staff record linked</p>
-              )}
-            </CardContent>
-          </Card>
+              </dl>
+            ) : (
+              <p className="px-6 py-8 text-sm text-slate-500">No staff record linked</p>
+            )}
+          </DataSection>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs text-gray-500 uppercase tracking-wide">Teaching Assignments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {teacherSubjectsQuery.isLoading ? (
-                <Skeleton className="h-16" />
-              ) : teacherSubjects.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500 border-b">
-                      <th className="pb-1.5 font-medium">Subject</th>
-                      <th className="pb-1.5 font-medium">Class</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {teacherSubjects.map((ts) => (
-                      <tr key={ts.id}>
-                        <td className="py-1.5 text-gray-900">{ts.subject}</td>
-                        <td className="py-1.5 text-gray-500">
-                          {ts.class_name ?? '—'}{ts.section ? ` ${ts.section}` : ''}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-sm text-gray-400">No teaching assignments</p>
-              )}
-            </CardContent>
-          </Card>
+          <DataSection title="Teaching assignments">
+            {teacherSubjectsQuery.isLoading ? (
+              <div className="p-6">
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : teacherSubjects.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-200 hover:bg-transparent">
+                    <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Subject
+                    </TableHead>
+                    <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Class
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teacherSubjects.map((ts) => (
+                    <TableRow key={ts.id} className="border-slate-200">
+                      <TableCell className="px-6 py-4 text-slate-900">{ts.subject}</TableCell>
+                      <TableCell className="px-6 py-4 text-slate-600">
+                        {ts.class_name ?? '—'}
+                        {ts.section ? ` ${ts.section}` : ''}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="px-6 py-8 text-sm text-slate-500">No teaching assignments</p>
+            )}
+          </DataSection>
         </>
       )}
 
-      {/* Admin */}
-      {role === 'admin' && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-gray-500 uppercase tracking-wide">Account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">Administrator</Badge>
-            </div>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm mt-1">
-              {schoolId && <Row label="School ID" value={schoolId} />}
-            </dl>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Superadmin */}
-      {role === 'superadmin' && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-gray-500 uppercase tracking-wide">Account</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant="secondary">Super Admin</Badge>
-          </CardContent>
-        </Card>
+      {(role === 'admin' || role === 'superadmin') && (
+        <DataSection title="Administrator">
+          <div className="px-6 py-4">
+            <Badge variant="secondary" className="rounded-md border border-slate-200 capitalize">
+              {role}
+            </Badge>
+          </div>
+        </DataSection>
       )}
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <>
-      <dt className="text-gray-500">{label}</dt>
-      <dd className="text-gray-900">{value}</dd>
-    </>
+    <div className="grid gap-1 py-4 sm:grid-cols-[160px_1fr] sm:gap-4">
+      <dt className="text-sm font-medium text-slate-600">{label}</dt>
+      <dd className="text-sm text-slate-900">{value}</dd>
+    </div>
   );
 }

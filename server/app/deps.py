@@ -2,7 +2,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -19,6 +19,7 @@ def _hash_token(token: str) -> str:
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -26,7 +27,11 @@ async def get_current_user(
 
     # Superadmin shortcut — static API key
     if token == settings.superadmin_api_key:
-        return {"user_id": "superadmin", "school_id": None, "role": "superadmin", "entity_id": None}
+        user = {"user_id": "superadmin", "school_id": None, "role": "superadmin", "entity_id": None}
+        x_school = request.headers.get("X-School-Id")
+        if x_school:
+            user["school_id"] = x_school
+        return user
 
     token_hash = _hash_token(token)
     now = datetime.now(timezone.utc)
@@ -53,12 +58,17 @@ async def get_current_user(
     session.last_seen_at = now
     await db.flush()
 
-    return {
+    user = {
         "user_id": session.school_user_id,
         "school_id": session.school_id,
         "role": session.role,
         "entity_id": entity_id,
     }
+    if user["role"] == "superadmin":
+        x_school = request.headers.get("X-School-Id")
+        if x_school:
+            user["school_id"] = x_school
+    return user
 
 
 CurrentUser = Annotated[dict, Depends(get_current_user)]
