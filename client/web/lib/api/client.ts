@@ -8,6 +8,8 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const token = storage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const schoolId = storage.getActiveSchoolId();
+  if (schoolId) config.headers['X-School-Id'] = schoolId;
   return config;
 });
 
@@ -16,6 +18,7 @@ apiClient.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       storage.clearToken();
+      storage.clearActiveSchoolId();
       window.location.href = '/login';
     }
     return Promise.reject(err);

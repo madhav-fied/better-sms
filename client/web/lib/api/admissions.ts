@@ -6,25 +6,11 @@ export const getEnquiries = (params?: Record<string, unknown>) =>
 export const getEnquiry = (id: string) =>
   apiClient.get(`/enquiries/${id}`).then((r) => r.data);
 
-export const createEnquiry = (data: Record<string, unknown>) =>
+export const createEnquiry = (data: unknown) =>
   apiClient.post('/enquiries', data).then((r) => r.data);
 
-export const updateEnquiry = (id: string, data: Record<string, unknown>) =>
-  apiClient.put(`/enquiries/${id}`, data).then((r) => r.data);
-
-export const convertEnquiry = (id: string) =>
-  apiClient.post(`/enquiries/${id}/convert`, {}).then((r) => r.data);
-
-export const updateEnquiryStatus = (id: string, status: string) =>
-  apiClient.patch(`/enquiries/${id}/status`, { status }).then((r) => r.data);
-
-export const updateRegistrationStatus = (id: string, status: string) =>
-  apiClient.patch(`/registrations/${id}/status`, { status }).then((r) => r.data);
-
-export const createRegistration = (data: {
-  student_fields: Record<string, unknown>;
-  parent_guardians?: Array<{ relation: string; first_name: string; name?: string; phone?: string }>;
-}) => apiClient.post('/registrations', data).then((r) => r.data);
+export const convertEnquiry = (id: string, data: unknown) =>
+  apiClient.post(`/enquiries/${id}/convert`, data).then((r) => r.data);
 
 export const getRegistrations = (params?: Record<string, unknown>) =>
   apiClient.get('/registrations', { params }).then((r) => r.data);
@@ -35,13 +21,8 @@ export const getRegistration = (id: string) =>
 export const acceptRegistration = (id: string) =>
   apiClient.post(`/registrations/${id}/accept`).then((r) => r.data);
 
-export const rejectRegistration = (id: string, reason: string) =>
-  apiClient.post(`/registrations/${id}/reject`, { reason }).then((r) => r.data);
+export const rejectRegistration = (id: string) =>
+  apiClient.post(`/registrations/${id}/reject`).then((r) => r.data);
 
-export const admitStudent = (data: {
-  registration_id: string;
-  class_section_id: string;
-  student_type?: string;
-  hosteller?: boolean;
-  admission_type?: string;
-}) => apiClient.post('/students/admit', data).then((r) => r.data);
+export const admitStudent = (data: unknown) =>
+  apiClient.post('/students/admit', data).then((r) => r.data);

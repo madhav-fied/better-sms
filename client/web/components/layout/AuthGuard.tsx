@@ -23,16 +23,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           token,
           role: d.role,
           schoolId: d.school_id,
-          schoolName: d.school_name ?? null,
-          schoolBranchName: d.school_branch_name ?? null,
           userId: d.user_id,
           entityId: d.entity_id,
           expiresAt: d.expires_at ?? null,
         });
+        if (d.school_id) storage.setActiveSchoolId(d.school_id);
         setChecking(false);
       })
       .catch(() => {
         clearSession();
+        storage.clearActiveSchoolId();
         router.replace('/login');
       });
   }, []);

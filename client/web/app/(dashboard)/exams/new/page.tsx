@@ -7,15 +7,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useActiveAY } from '@/hooks/useActiveAY';
 
 export default function NewExamPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: '', start_date: '', end_date: '' });
+  const { data: activeAy } = useActiveAY();
+  const [form, setForm] = useState({ name: '', exam_type: 'unit_test' });
 
   const mutation = useMutation({
-    mutationFn: () => createExam(form),
+    mutationFn: () => {
+      if (!activeAy?.id) throw new Error('No active academic year');
+      return createExam({
+        academic_year_id: activeAy.id,
+        name: form.name,
+        exam_type: form.exam_type,
+      });
+    },
     onSuccess: (res) => { toast.success('Exam created'); router.push(`/exams/${res.data?.id}`); },
-    onError: () => toast.error('Failed'),
+    onError: () => toast.error('Failed — set an active academic year in Settings'),
   });
 
   return (
@@ -27,12 +36,19 @@ export default function NewExamPage() {
           <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
         </div>
         <div className="space-y-1.5">
-          <Label>Start Date</Label>
-          <Input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>End Date</Label>
-          <Input type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
+          <Label>Type</Label>
+          <select
+            className="w-full border rounded-md px-3 py-2 text-sm"
+            value={form.exam_type}
+            onChange={(e) => setForm((f) => ({ ...f, exam_type: e.target.value }))}
+          >
+            <option value="unit_test">Unit test</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="half_yearly">Half yearly</option>
+            <option value="annual">Annual</option>
+            <option value="other">Other</option>
+          </select>
         </div>
         <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.name}>
           {mutation.isPending ? 'Creating…' : 'Create Exam'}

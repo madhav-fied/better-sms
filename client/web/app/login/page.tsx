@@ -1,262 +1,192 @@
 'use client';
+
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import { useAuthStore } from '@/store/auth';
-import { requestOtp, verifyOtp } from '@/lib/api/auth';
+import { passwordLogin, type LoginAccount } from '@/lib/api/auth';
+import { sessionFromResponse } from '@/lib/auth-session';
+import { storage } from '@/lib/storage';
+import type { Role } from '@/types/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { storage } from '@/lib/storage';
 import { toast } from 'sonner';
 
-interface School {
-  id: string;
-  name: string;
-}
+type LoginMeta = {
+  requires_account_selection?: boolean;
+  accounts?: LoginAccount[];
+};
+
+type SessionData = {
+  token: string;
+  role: Role;
+  school_id: string | null;
+  user_id: string;
+  entity_id: string | null;
+  expires_at: string;
+};
 
 export default function LoginPage() {
   const router = useRouter();
   const { setSession } = useAuthStore();
-
-  // OTP flow state
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [schoolId, setSchoolId] = useState('');
-  const [schools, setSchools] = useState<School[]>([]);
-  const [step, setStep] = useState<'phone' | 'school' | 'otp'>('phone');
-
-  // Superadmin flow state
-  const [mode, setMode] = useState<'otp' | 'superadmin'>('otp');
-  const [apiKey, setApiKey] = useState('');
-
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [loginAccounts, setLoginAccounts] = useState<LoginAccount[]>([]);
+  const [step, setStep] = useState<'credentials' | 'account'>('credentials');
   const [loading, setLoading] = useState(false);
 
-  const normalizePhone = (p: string) => {
-    const t = p.trim();
-    if (t.startsWith('+')) return t;
-    if (t.startsWith('91') && t.length === 12) return '+' + t;
-    if (t.length === 10 && /^\d+$/.test(t)) return '+91' + t;
-    return t;
-  };
-
-  // ── OTP helpers ──────────────────────────────────────────────────────────────
-
-  const sendOtp = async () => {
-    const normalized = normalizePhone(phone);
-    if (normalized !== phone) setPhone(normalized);
-    setLoading(true);
-    try {
-      const res = await requestOtp(normalized, schoolId || undefined);
-      if (res.meta?.requires_school_id) {
-        const list = (res.meta.schools ?? []).map((s: { school_id: string; school_name: string }) => ({ id: s.school_id, name: s.school_name }));
-        setSchools(list);
-        setStep('school');
-      } else {
-        if (res.data?.school_id) setSchoolId(res.data.school_id);
-        setStep('otp');
-      }
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      toast.error(e.response?.data?.error ?? 'Failed to send OTP');
-    } finally {
-      setLoading(false);
+  const finishLogin = (data: SessionData) => {
+    if (!data?.token) {
+      toast.error('Login failed — no session returned');
+      return;
     }
+    setSession(sessionFromResponse(data));
+    if (data.school_id) storage.setActiveSchoolId(data.school_id);
+    router.replace(data.role === 'superadmin' ? '/schools' : '/dashboard');
   };
 
-  const confirmSchool = async () => {
-    if (!schoolId) return;
-    setLoading(true);
-    try {
-      await requestOtp(normalizePhone(phone), schoolId);
-      setStep('otp');
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      toast.error(e.response?.data?.error ?? 'Failed to send OTP');
-    } finally {
-      setLoading(false);
+  const handleLogin = async () => {
+    const id = identifier.trim();
+    if (!id || !password) {
+      toast.error('Enter email/phone and password');
+      return;
     }
-  };
+    if (step === 'account' && !selectedUserId) {
+      toast.error('Select an account to continue');
+      return;
+    }
 
-  const verify = async () => {
     setLoading(true);
     try {
-      const res = await verifyOtp(normalizePhone(phone), otp, schoolId || undefined);
-      const d = res.data;
-      setSession({
-        token: d.token,
-        role: d.role,
-        schoolId: d.school_id,
-        schoolName: d.school_name ?? null,
-        schoolBranchName: d.school_branch_name ?? null,
-        userId: d.user_id,
-        entityId: d.entity_id,
-        expiresAt: d.expires_at,
+      const res = await passwordLogin({
+        identifier: id,
+        password,
+        user_id: step === 'account' ? selectedUserId : undefined,
       });
-      router.replace('/dashboard');
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      toast.error(e.response?.data?.error ?? 'Invalid OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // ── Superadmin helper ────────────────────────────────────────────────────────
-
-  const signInAsAdmin = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
-      const d = res.data?.data;
-      if (d?.role !== 'superadmin') {
-        toast.error('That key does not belong to a superadmin account');
+      const meta = res.meta as LoginMeta | undefined;
+      if (meta?.requires_account_selection && meta.accounts?.length) {
+        setLoginAccounts(meta.accounts);
+        setStep('account');
+        if (meta.accounts.length === 1) {
+          setSelectedUserId(meta.accounts[0].user_id);
+        }
+        toast.message('Choose an account', {
+          description: 'This phone/email is linked to more than one role.',
+        });
         return;
       }
-      storage.setToken(apiKey);
-      setSession({
-        token: apiKey,
-        role: 'superadmin',
-        schoolId: null,
-        schoolName: null,
-        schoolBranchName: null,
-        userId: 'superadmin',
-        entityId: null,
-        expiresAt: null,
-      });
-      router.replace('/dashboard');
-    } catch {
-      toast.error('Invalid API key');
+
+      if (!res.data?.token) {
+        toast.error(res.error ?? 'Login failed');
+        return;
+      }
+
+      finishLogin(res.data as SessionData);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string; detail?: string | { msg?: string }[] } } };
+      const detail = e.response?.data?.detail;
+      const message =
+        e.response?.data?.error
+        ?? (typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg : undefined)
+        ?? 'Invalid email/phone or password';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const switchMode = (next: 'otp' | 'superadmin') => {
-    setMode(next);
-    // reset both flows
-    setPhone(''); setOtp(''); setSchoolId(''); setSchools([]); setStep('phone');
-    setApiKey('');
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleLogin();
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-sm bg-white rounded-lg border p-8 space-y-5">
         <div>
-          <h1 className="text-lg font-semibold">SMS Admin</h1>
+          <h1 className="text-lg font-semibold">Edulink</h1>
           <p className="text-sm text-gray-400 mt-1">
-            {mode === 'superadmin' ? 'Superadmin sign in' : 'Sign in to your account'}
+            {step === 'credentials' ? 'Sign in to your account' : 'Select which account to use'}
           </p>
         </div>
 
-        {/* ── Superadmin mode ─────────────────────────────────────────────── */}
-        {mode === 'superadmin' && (
+        {step === 'credentials' && (
           <>
             <div className="space-y-2">
-              <Label>API key</Label>
+              <Label>Email or phone</Label>
               <Input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Superadmin API key"
-                onKeyDown={(e) => e.key === 'Enter' && !loading && apiKey && signInAsAdmin()}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="email@example.com or 10-digit phone"
+                autoComplete="username"
               />
             </div>
-            <Button className="w-full" onClick={signInAsAdmin} disabled={loading || !apiKey}>
-              {loading ? 'Verifying…' : 'Sign in as Superadmin'}
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={onKeyDown}
+                autoComplete="current-password"
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={handleLogin}
+              disabled={loading || !identifier.trim() || !password}
+            >
+              {loading ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </>
+        )}
+
+        {step === 'account' && (
+          <>
+            <div className="space-y-2">
+              <Label>Select account</Label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+              >
+                <option value="">— select account —</option>
+                {loginAccounts.map((a) => (
+                  <option key={a.user_id} value={a.user_id}>
+                    {a.school_name} ({a.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button className="w-full" onClick={handleLogin} disabled={loading || !selectedUserId}>
+              {loading ? 'Signing in…' : 'Continue'}
             </Button>
             <button
+              type="button"
               className="w-full text-sm text-gray-400 hover:text-gray-600"
-              onClick={() => switchMode('otp')}
+              onClick={() => {
+                setStep('credentials');
+                setLoginAccounts([]);
+                setSelectedUserId('');
+              }}
             >
-              Back to normal login
+              Back
             </button>
           </>
         )}
 
-        {/* ── OTP mode ────────────────────────────────────────────────────── */}
-        {mode === 'otp' && (
-          <>
-            {(step === 'phone' || step === 'school') && (
-              <div className="space-y-2">
-                <Label>Phone number</Label>
-                <Input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91XXXXXXXXXX"
-                  disabled={step === 'school'}
-                />
-              </div>
-            )}
-
-            {step === 'school' && (
-              <div className="space-y-2">
-                <Label>Select school</Label>
-                <select
-                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  value={schoolId}
-                  onChange={(e) => setSchoolId(e.target.value)}
-                >
-                  <option value="">— select school —</option>
-                  {schools.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-                <Button className="w-full" onClick={confirmSchool} disabled={loading || !schoolId}>
-                  {loading ? 'Sending OTP…' : 'Continue'}
-                </Button>
-                <button
-                  className="w-full text-sm text-gray-400 hover:text-gray-600"
-                  onClick={() => { setStep('phone'); setSchools([]); setSchoolId(''); }}
-                >
-                  Change phone number
-                </button>
-              </div>
-            )}
-
-            {step === 'phone' && (
-              <Button className="w-full" onClick={sendOtp} disabled={loading || !phone}>
-                {loading ? 'Sending…' : 'Send OTP'}
-              </Button>
-            )}
-
-            {step === 'otp' && (
-              <>
-                <div className="space-y-2">
-                  <Label>OTP</Label>
-                  <Input
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="6-digit code"
-                    maxLength={6}
-                  />
-                </div>
-                <Button className="w-full" onClick={verify} disabled={loading || otp.length !== 6}>
-                  {loading ? 'Verifying…' : 'Verify & Login'}
-                </Button>
-                <button
-                  className="w-full text-sm text-gray-400 hover:text-gray-600"
-                  onClick={() => { setStep('phone'); setOtp(''); }}
-                >
-                  Back
-                </button>
-              </>
-            )}
-
-            <div className="pt-1 text-center">
-              <button
-                className="text-xs text-gray-300 hover:text-gray-500"
-                onClick={() => switchMode('superadmin')}
-              >
-                Superadmin? Sign in with API key
-              </button>
-            </div>
-          </>
-        )}
+        <p className="text-center text-sm text-gray-500">
+          <Link href="/forgot-password" className="underline">
+            Forgot password?
+          </Link>
+          {' · '}
+          <Link href="/register" className="underline">
+            Register
+          </Link>
+        </p>
       </div>
     </div>
   );

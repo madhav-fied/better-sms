@@ -33,7 +33,7 @@ export default function HomeworkPage() {
               : items.map((h: { id: string; title: string; subject: string; due_date: string }) => (
                   <tr key={h.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <Link href={`/homework/${h.id}`} className="text-blue-600 hover:underline">{h.title}</Link>
+                      <span>{h.title}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-500">{h.subject}</td>
                     <td className="px-4 py-3 text-gray-500">{h.due_date}</td>

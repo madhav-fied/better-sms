@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ClassSectionPicker } from '@/components/shared/ClassSectionPicker';
 
 export default function ResultsPage() {
   const [examId, setExamId] = useState('');
@@ -17,6 +16,7 @@ export default function ResultsPage() {
   const [publishOpen, setPublishOpen] = useState(false);
 
   const { data: exams } = useQuery({ queryKey: ['exams'], queryFn: () => apiClient.get('/exams').then((r) => r.data?.data ?? []) });
+  const { data: sections } = useQuery({ queryKey: ['class-sections'], queryFn: () => apiClient.get('/class-sections').then((r) => r.data?.data ?? []) });
   const { data: subjects } = useQuery({ queryKey: ['subjects'], queryFn: () => apiClient.get('/subjects').then((r) => r.data?.data ?? []) });
 
   const { data: studentsData } = useQuery({
@@ -51,12 +51,10 @@ export default function ResultsPage() {
           <option value="">— Exam —</option>
           {(exams ?? []).map((e: { id: string; name: string }) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
-        <ClassSectionPicker
-          value={classSectionId}
-          onChange={setClassSectionId}
-          placeholder="— Class —"
-          className="w-44"
-        />
+        <select className="border rounded px-3 py-2 text-sm" value={classSectionId} onChange={(e) => setClassSectionId(e.target.value)}>
+          <option value="">— Class —</option>
+          {(sections ?? []).map((c: { id: string; class_name: string; section: string }) => <option key={c.id} value={c.id}>{c.class_name} {c.section}</option>)}
+        </select>
         <select className="border rounded px-3 py-2 text-sm" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
           <option value="">— Subject —</option>
           {(subjects ?? []).map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}

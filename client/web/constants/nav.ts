@@ -9,7 +9,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Schools', href: '/schools', roles: ['superadmin'] },
-  { label: 'Dashboard', href: '/dashboard', roles: ['superadmin', 'admin', 'staff'] },
+  { label: 'Dashboard', href: '/dashboard', roles: ['superadmin', 'admin', 'teacher', 'staff', 'parent'] },
   {
     label: 'Students', href: '/students', roles: ['admin', 'superadmin'],
     children: [
@@ -20,17 +20,16 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: 'Staff', href: '/staff', roles: ['admin', 'superadmin'] },
   {
-    label: 'Attendance', href: '/attendance/students', roles: ['admin', 'superadmin', 'staff'],
+    label: 'Attendance', href: '/attendance/students', roles: ['admin', 'superadmin', 'teacher'],
     children: [
       { label: 'Students', href: '/attendance/students' },
       { label: 'Staff', href: '/attendance/staff' },
-      { label: 'History', href: '/attendance/students/history' },
     ],
   },
-  { label: 'Homework', href: '/homework', roles: ['admin', 'superadmin', 'staff'] },
-  { label: 'Leaves', href: '/leaves', roles: ['admin', 'superadmin', 'staff'] },
+  { label: 'Homework', href: '/homework', roles: ['admin', 'superadmin', 'teacher'] },
+  { label: 'Leaves', href: '/leaves', roles: ['admin', 'superadmin', 'teacher', 'staff'] },
   {
-    label: 'Communications', href: '/communications/notices', roles: ['admin', 'superadmin', 'staff'],
+    label: 'Communications', href: '/communications/notices', roles: ['admin', 'superadmin', 'teacher'],
     children: [
       { label: 'Notices', href: '/communications/notices' },
       { label: 'Syllabus', href: '/communications/syllabus' },
@@ -38,10 +37,15 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Concerns', href: '/communications/concerns' },
     ],
   },
-  { label: 'Timetable', href: '/timetable', roles: ['admin', 'superadmin', 'staff'] },
-  { label: 'Exams', href: '/exams', roles: ['admin', 'superadmin', 'staff'] },
-  { label: 'Results', href: '/results', roles: ['admin', 'superadmin', 'staff'] },
-  { label: 'Profile', href: '/profile', roles: ['superadmin', 'admin', 'teacher', 'staff'] },
+  { label: 'Timetable', href: '/timetable', roles: ['admin', 'superadmin', 'teacher'] },
+  { label: 'Exams', href: '/exams', roles: ['admin', 'superadmin', 'teacher'] },
+  { label: 'Results', href: '/results', roles: ['admin', 'superadmin', 'teacher'] },
+  {
+    label: 'Notices', href: '/communications/notices', roles: ['parent'],
+  },
+  {
+    label: 'Concerns', href: '/communications/concerns', roles: ['parent'],
+  },
   {
     label: 'Settings', href: '/settings/academic-years', roles: ['admin', 'superadmin'],
     children: [

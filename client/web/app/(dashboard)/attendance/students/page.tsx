@@ -5,16 +5,19 @@ import { markStudentAttendance } from '@/lib/api/attendance';
 import apiClient from '@/lib/api/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { ClassSectionPicker } from '@/components/shared/ClassSectionPicker';
-import { useAuthStore } from '@/store/auth';
 
+interface ClassSection { id: string; class_name: string; section: string }
 interface StudentRow { id: string; name: string }
 
 export default function StudentAttendancePage() {
-  const role = useAuthStore((s) => s.role);
   const [classSectionId, setClassSectionId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState<Record<string, 'present' | 'absent' | 'leave'>>({});
+
+  const { data: sections } = useQuery({
+    queryKey: ['class-sections'],
+    queryFn: () => apiClient.get('/class-sections').then((r) => r.data?.data ?? []),
+  });
 
   const { data: studentsData } = useQuery({
     queryKey: ['attendance-students', classSectionId],
@@ -47,12 +50,16 @@ export default function StudentAttendancePage() {
       <div className="flex gap-3 flex-wrap items-end">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Class</label>
-          <ClassSectionPicker
+          <select
+            className="border rounded px-3 py-2 text-sm"
             value={classSectionId}
-            onChange={(id) => { setClassSectionId(id); setRecords({}); }}
-            className="w-56"
-            classTeacherOnly={role === 'teacher'}
-          />
+            onChange={(e) => { setClassSectionId(e.target.value); setRecords({}); }}
+          >
+            <option value="">— select class —</option>
+            {(sections ?? []).map((c: ClassSection) => (
+              <option key={c.id} value={c.id}>{c.class_name} {c.section}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="text-xs text-gray-500 block mb-1">Date</label>

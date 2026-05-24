@@ -7,8 +7,6 @@ interface AuthState {
   token: string | null;
   role: Role | null;
   schoolId: string | null;
-  schoolName: string | null;
-  schoolBranchName: string | null;
   userId: string | null;
   entityId: string | null;
   expiresAt: string | null;
@@ -20,17 +18,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   role: null,
   schoolId: null,
-  schoolName: null,
-  schoolBranchName: null,
   userId: null,
   entityId: null,
   expiresAt: null,
   setSession: (s) => {
     if (s.token) storage.setToken(s.token);
+    if (s.schoolId) storage.setActiveSchoolId(s.schoolId);
     set(s);
   },
   clearSession: () => {
     storage.clearToken();
-    set({ token: null, role: null, schoolId: null, schoolName: null, schoolBranchName: null, userId: null, entityId: null, expiresAt: null });
+    storage.clearActiveSchoolId();
+    set({ token: null, role: null, schoolId: null, userId: null, entityId: null, expiresAt: null });
   },
 }));

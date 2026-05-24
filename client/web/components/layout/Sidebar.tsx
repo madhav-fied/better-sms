@@ -1,71 +1,111 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRole } from '@/hooks/useRole';
 import { NAV_ITEMS } from '@/constants/nav';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+function isActive(pathname: string, href: string) {
+  if (href === '/dashboard') return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export default function Sidebar() {
   const { role } = useRole();
   const pathname = usePathname();
   const [open, setOpen] = useState<string | null>(null);
 
-  const items = NAV_ITEMS.filter((i) => role && i.roles.includes(role));
+  const items = useMemo(
+    () => NAV_ITEMS.filter((i) => role && i.roles.includes(role)),
+    [role],
+  );
+
+  useEffect(() => {
+    const activeParent = items.find((item) =>
+      item.children?.some((child) => isActive(pathname, child.href)),
+    );
+    if (activeParent) {
+      setOpen(activeParent.href);
+    }
+  }, [pathname, items]);
 
   return (
-    <aside className="w-56 bg-gray-900 text-gray-100 min-h-screen flex flex-col shrink-0">
-      <div className="px-4 py-5 font-semibold text-base border-b border-gray-700">
-        SKEducations
+    <aside className="flex w-60 min-h-screen shrink-0 flex-col border-r border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 px-5 py-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">School Management</p>
+        <p className="mt-1 text-lg font-semibold text-slate-900">Edulink</p>
       </div>
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {items.map((item) => (
-          <div key={item.href}>
-            {item.children ? (
-              <>
-                <button
-                  onClick={() => setOpen(open === item.href ? null : item.href)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded text-sm hover:bg-gray-800 text-gray-200"
+
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Main navigation">
+        {items.map((item) => {
+          const childActive = item.children?.some((child) => isActive(pathname, child.href));
+          const itemActive = !item.children && isActive(pathname, item.href);
+
+          return (
+            <div key={item.href}>
+              {item.children ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(open === item.href ? null : item.href)}
+                    aria-expanded={open === item.href}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
+                      childActive
+                        ? 'border-slate-200 bg-slate-50 text-slate-900'
+                        : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50',
+                    )}
+                  >
+                    <span>{item.label}</span>
+                    {open === item.href ? (
+                      <ChevronDown size={16} className="text-slate-500" aria-hidden />
+                    ) : (
+                      <ChevronRight size={16} className="text-slate-500" aria-hidden />
+                    )}
+                  </button>
+                  {open === item.href && (
+                    <div className="mt-1 space-y-0.5 border-l-2 border-slate-200 pl-3 ml-2">
+                      {item.children.map((child) => {
+                        const active = isActive(pathname, child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            aria-current={active ? 'page' : undefined}
+                            className={cn(
+                              'block rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                              active
+                                ? 'border-slate-200 bg-slate-100 text-slate-900 shadow-sm'
+                                : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900',
+                            )}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link
+                  href={item.href}
+                  aria-current={itemActive ? 'page' : undefined}
+                  className={cn(
+                    'block rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
+                    itemActive
+                      ? 'border-slate-200 bg-slate-100 text-slate-900 shadow-sm'
+                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50',
+                  )}
                 >
                   {item.label}
-                  {open === item.href ? (
-                    <ChevronDown size={13} />
-                  ) : (
-                    <ChevronRight size={13} />
-                  )}
-                </button>
-                {open === item.href && (
-                  <div className="ml-3 mt-0.5 space-y-0.5">
-                    {item.children.map((c) => (
-                      <Link
-                        key={c.href}
-                        href={c.href}
-                        className={`block px-3 py-1.5 rounded text-sm ${
-                          pathname === c.href
-                            ? 'bg-gray-700 text-white'
-                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                        }`}
-                      >
-                        {c.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <Link
-                href={item.href}
-                className={`block px-3 py-2 rounded text-sm ${
-                  pathname === item.href
-                    ? 'bg-gray-700 text-white'
-                    : 'text-gray-200 hover:bg-gray-800'
-                }`}
-              >
-                {item.label}
-              </Link>
-            )}
-          </div>
-        ))}
+                </Link>
+              )}
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

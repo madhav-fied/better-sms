@@ -23,7 +23,7 @@ export default function LeavesPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (id: string) => rejectLeave(id, 'Rejected by admin'),
+    mutationFn: (id: string) => rejectLeave(id),
     onSuccess: () => { toast.success('Rejected'); qc.invalidateQueries({ queryKey: ['leaves'] }); },
     onError: () => toast.error('Failed'),
   });
