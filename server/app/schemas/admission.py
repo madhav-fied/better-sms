@@ -49,7 +49,7 @@ class EnquiryOut(BaseModel):
 class ParentGuardianCreate(BaseModel):
     relation: ParentRelation
     name: Optional[str] = None
-    first_name: str
+    first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -70,13 +70,34 @@ class ParentGuardianCreate(BaseModel):
     alternate_email: Optional[str] = None
     emergency_mobile: Optional[str] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_fields(cls, data):
+        if not isinstance(data, dict):
+            return data
+        if data.get("password") and not data.get("login_password"):
+            data["login_password"] = data.pop("password")
+        if data.get("mobile") and not data.get("phone"):
+            data["phone"] = data["mobile"]
+        name = (data.get("name") or "").strip() or None
+        first = (data.get("first_name") or "").strip() or None
+        if name and not first:
+            parts = name.split(None, 1)
+            data["first_name"] = parts[0]
+            if len(parts) > 1 and not data.get("last_name"):
+                data["last_name"] = parts[1]
+        return data
+
     @model_validator(mode="after")
     def require_login_credentials(self) -> "ParentGuardianCreate":
-        if self.phone and self.phone.strip():
-            if not self.email or not self.email.strip():
-                raise ValueError("Parent email is required when phone is provided")
-            if not self.login_password:
-                raise ValueError("Parent password is required when phone is provided")
+        has_phone = bool(self.phone and self.phone.strip())
+        has_email = bool(self.email and self.email.strip())
+        has_password = bool(self.login_password)
+        if has_phone and (has_email or has_password):
+            if not has_email:
+                raise ValueError("Parent email is required for login access")
+            if not has_password:
+                raise ValueError("Parent password is required for login access")
         return self
 
 

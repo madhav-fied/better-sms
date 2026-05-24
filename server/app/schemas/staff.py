@@ -1,12 +1,20 @@
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app.models.staff import StaffGender, StaffCategory, StaffStatus, MaritalStatus, TeachingType, JobType, JobStatus
 
 
+def _split_name(name: str) -> tuple[str, Optional[str]]:
+    parts = name.strip().split(None, 1)
+    first = parts[0]
+    last = parts[1] if len(parts) > 1 else None
+    return first, last
+
+
 class StaffCreate(BaseModel):
-    first_name: str
+    name: Optional[str] = None
+    first_name: Optional[str] = None
     last_name: Optional[str] = None
     short_name: Optional[str] = None
     gender: StaffGender
@@ -42,8 +50,32 @@ class StaffCreate(BaseModel):
     spouse_name: Optional[str] = None
     photo_url: Optional[str] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_name_fields(cls, data):
+        if not isinstance(data, dict):
+            return data
+        name = (data.get("name") or "").strip() or None
+        first = (data.get("first_name") or "").strip() or None
+        last = (data.get("last_name") or "").strip() or None
+        if name and not first:
+            first, extra_last = _split_name(name)
+            data["first_name"] = first
+            if extra_last and not last:
+                data["last_name"] = extra_last
+        elif first and not name:
+            data["name"] = f"{first} {last}".strip() if last else first
+        elif not first and not name:
+            raise ValueError("Either name or first_name is required")
+        if not data.get("name"):
+            fn = data.get("first_name", "")
+            ln = data.get("last_name") or ""
+            data["name"] = f"{fn} {ln}".strip() or fn
+        return data
+
 
 class StaffUpdate(BaseModel):
+    name: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     short_name: Optional[str] = None
@@ -80,6 +112,24 @@ class StaffUpdate(BaseModel):
     spouse_name: Optional[str] = None
     photo_url: Optional[str] = None
     status: Optional[StaffStatus] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_name_fields(cls, data):
+        if not isinstance(data, dict):
+            return data
+        name = (data.get("name") or "").strip() or None
+        first = (data.get("first_name") or "").strip() or None
+        last = (data.get("last_name") or "").strip() or None
+        if name and not first:
+            first, extra_last = _split_name(name)
+            data["first_name"] = first
+            if extra_last and not last:
+                data["last_name"] = extra_last
+            data["name"] = name
+        elif first and not name:
+            data["name"] = f"{first} {last}".strip() if last else first
+        return data
 
 
 class StaffOut(BaseModel):
