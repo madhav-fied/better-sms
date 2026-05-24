@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import PageHeader from '@/components/layout/PageHeader';
 import EmptyState from '@/components/enterprise/EmptyState';
+import ActionLink from '@/components/enterprise/ActionLink';
 
 export default function NewslettersPage() {
   const { data, isLoading } = useQuery({ queryKey: ['newsletters'], queryFn: () => getNewsletters({ limit: 20 }) });
@@ -13,7 +14,11 @@ export default function NewslettersPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Newsletters" description="Read school newsletters and updates." />
+      <PageHeader
+        title="Newsletters"
+        description="Read and publish school newsletters."
+        actions={<ActionLink href="/communications/newsletters/new">Add newsletter</ActionLink>}
+      />
 
       <div className="space-y-3">
         {isLoading

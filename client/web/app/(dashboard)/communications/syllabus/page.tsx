@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import PageHeader from '@/components/layout/PageHeader';
 import EmptyState from '@/components/enterprise/EmptyState';
+import ActionLink from '@/components/enterprise/ActionLink';
 
 export default function SyllabusPage() {
   const { data, isLoading } = useQuery({ queryKey: ['syllabus'], queryFn: () => getSyllabus({ limit: 30 }) });
@@ -13,7 +14,11 @@ export default function SyllabusPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Syllabus" description="Browse syllabus documents by subject and class." />
+      <PageHeader
+        title="Syllabus"
+        description="Browse and manage syllabus documents by subject and class."
+        actions={<ActionLink href="/communications/syllabus/new">Add syllabus</ActionLink>}
+      />
 
       <div className="space-y-3">
         {isLoading

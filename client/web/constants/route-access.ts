@@ -12,6 +12,7 @@ function collectAllowedPaths(role: Role): string[] {
   }
   if (role === 'admin' || role === 'superadmin') {
     paths.add('/settings/school');
+    paths.add('/settings/periods');
     paths.add('/exams');
   }
   if (role === 'parent') {

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import AuthShell from '@/components/layout/AuthShell';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -35,25 +36,27 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-sm bg-white rounded-lg border p-8 space-y-5">
-        <div>
-          <h1 className="text-lg font-semibold">Set new password</h1>
-        </div>
+    <AuthShell
+      title="Set new password"
+      subtitle="Choose a strong password for your account."
+      footer={
+        <p className="text-center text-sm text-slate-600">
+          <Link href="/login" className="font-medium text-slate-900 underline-offset-4 hover:underline">
+            Back to sign in
+          </Link>
+        </p>
+      }
+    >
+      <div className="space-y-4">
         <div className="space-y-2">
-          <Label>New password</Label>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Label htmlFor="new-password" className="text-slate-700">New password</Label>
+          <Input id="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="border-slate-200" />
         </div>
         <Button className="w-full" onClick={submit} disabled={loading || !password || !token}>
           {loading ? 'Saving…' : 'Update password'}
         </Button>
-        <p className="text-center text-sm text-gray-500">
-          <Link href="/login" className="underline">
-            Back to sign in
-          </Link>
-        </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }
 

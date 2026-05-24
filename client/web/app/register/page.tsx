@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import AuthShell from '@/components/layout/AuthShell';
+import LabeledSelect from '@/components/enterprise/LabeledSelect';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -36,46 +38,46 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-sm bg-white rounded-lg border p-8 space-y-5">
-        <div>
-          <h1 className="text-lg font-semibold">Edulink</h1>
-          <p className="text-sm text-gray-400 mt-1">Create your account · phone required</p>
-        </div>
-        <div className="space-y-2">
-          <Label>Email</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Phone</Label>
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile" />
-        </div>
-        <div className="space-y-2">
-          <Label>Password</Label>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Role</Label>
-          <select
-            className="w-full border rounded-md px-3 py-2 text-sm"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="admin">Admin</option>
-            <option value="teacher">Teacher</option>
-            <option value="staff">Staff</option>
-            <option value="parent">Parent</option>
-          </select>
-        </div>
-        <Button className="w-full" onClick={submit} disabled={loading || !email || !phone || !password}>
-          {loading ? 'Creating…' : 'Register'}
-        </Button>
-        <p className="text-center text-sm text-gray-500">
-          <Link href="/login" className="underline">
+    <AuthShell
+      title="Create account"
+      subtitle="Register a new user account for your school."
+      footer={
+        <p className="text-center text-sm text-slate-600">
+          <Link href="/login" className="font-medium text-slate-900 underline-offset-4 hover:underline">
             Back to sign in
           </Link>
         </p>
+      }
+    >
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="reg-email" className="text-slate-700">Email</Label>
+          <Input id="reg-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="border-slate-200" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="reg-phone" className="text-slate-700">Phone</Label>
+          <Input id="reg-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile" className="border-slate-200" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="reg-password" className="text-slate-700">Password</Label>
+          <Input id="reg-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="border-slate-200" />
+        </div>
+        <LabeledSelect
+          label="Role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          placeholder="Select role"
+          options={[
+            { value: 'admin', label: 'Admin' },
+            { value: 'teacher', label: 'Teacher' },
+            { value: 'staff', label: 'Staff' },
+            { value: 'parent', label: 'Parent' },
+          ]}
+        />
+        <Button className="w-full" onClick={submit} disabled={loading || !email || !phone || !password}>
+          {loading ? 'Creating…' : 'Create account'}
+        </Button>
       </div>
-    </div>
+    </AuthShell>
   );
 }

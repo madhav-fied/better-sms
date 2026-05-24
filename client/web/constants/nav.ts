@@ -61,6 +61,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Subjects', href: '/settings/subjects' },
       { label: 'Users', href: '/settings/users' },
       { label: 'School Settings', href: '/settings/school' },
+      { label: 'Bell Schedule', href: '/settings/periods' },
     ],
   },
 ];
