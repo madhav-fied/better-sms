@@ -72,10 +72,10 @@ class ParentGuardian(Base):
     name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     first_name: Mapped[Optional[str]] = mapped_column(sa.String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(sa.String(100), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(sa.String(20), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column("mobile", sa.String(20), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(sa.String(255), nullable=True)
     occupation: Mapped[Optional[str]] = mapped_column(sa.String(100), nullable=True)
-    is_primary: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
+    is_primary: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False, server_default="false")
 
     # Extended fields
     qualification: Mapped[Optional[str]] = mapped_column(sa.String(100), nullable=True)

@@ -79,7 +79,7 @@ class ParentGuardianOut(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     occupation: Optional[str] = None
-    is_primary: bool
+    is_primary: bool = False
     qualification: Optional[str] = None
     aadhar_no: Optional[str] = None
     dob: Optional[date] = None
