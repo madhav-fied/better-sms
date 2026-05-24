@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     @field_validator("database_url", mode="before")
     @classmethod
-    def normalize_database_url(cls, v: str) -> str:
+    def _normalize_database_url(cls, v: str) -> str:
         return normalize_database_url(v)
 
     model_config = {"env_file": ".env", "extra": "ignore"}

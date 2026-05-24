@@ -7,6 +7,8 @@ Create Date: 2026-05-23
 from alembic import op
 import sqlalchemy as sa
 
+from migrations.ddl import drop_index_if_exists, table_exists
+
 revision = "010"
 down_revision = "009"
 branch_labels = None
@@ -14,8 +16,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.drop_index("ix_otp_requests_phone_created_at", table_name="otp_requests")
-    op.drop_table("otp_requests")
+    if table_exists("otp_requests"):
+        drop_index_if_exists("ix_otp_requests_phone_created_at", "otp_requests")
+        op.drop_table("otp_requests")
     op.execute(sa.text("UPDATE schools SET name = 'Edulink' WHERE name = 'SKEducations'"))
 
 
