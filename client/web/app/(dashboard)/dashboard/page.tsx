@@ -78,20 +78,12 @@ function StudentDashboard() {
   );
 }
 
-function normalizeBirthdays(payload: unknown): Array<{ name: string; dob: string; type?: string }> {
-  if (Array.isArray(payload)) return payload;
-  if (payload && typeof payload === 'object' && Array.isArray((payload as { birthdays?: unknown }).birthdays)) {
-    return (payload as { birthdays: Array<{ name: string; dob: string; type?: string }> }).birthdays;
-  }
-  return [];
-}
-
 function AdminDashboard() {
   const summary = useQuery({ queryKey: ['dashboard-summary'], queryFn: getDashboardSummary });
   const birthdays = useQuery({ queryKey: ['birthdays'], queryFn: getBirthdays });
 
   const s = summary.data?.data;
-  const birthdayList = normalizeBirthdays(birthdays.data?.data);
+  const birthdayList = Array.isArray(birthdays.data?.data) ? birthdays.data.data : [];
 
   return (
     <div className="space-y-6">
