@@ -9,8 +9,6 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.db_url import normalize_database_url
-from app.database import Base
-from app.models import core, admission, student, staff, document, attendance, leave, homework, communications, timetable, exam, result, auth, subject  # noqa: F401
 
 config = context.config
 
@@ -18,6 +16,9 @@ database_url = normalize_database_url(
     os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
 )
 config.set_main_option("sqlalchemy.url", database_url)
+
+from app.database import Base  # noqa: E402
+from app.models import core, admission, student, staff, document, attendance, leave, homework, communications, timetable, exam, result, auth, subject  # noqa: F401, E402
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
