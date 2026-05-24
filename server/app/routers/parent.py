@@ -11,6 +11,7 @@ from app.models.core import ClassSection
 from app.schemas.parent import ParentCreate, ParentUpdate, ParentOut
 from app.schemas.student import StudentOut
 from app.schemas.common import Response, ok
+from app.services.parent_auth import provision_parent_login
 
 router = APIRouter()
 
@@ -22,9 +23,24 @@ async def create_parent(
     _: None = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    parent = Parent(school_id=user["school_id"], **body.model_dump())
+    data = body.model_dump(exclude_none=True)
+    login_password = data.pop("login_password", None)
+    parent = Parent(school_id=user["school_id"], **data)
     db.add(parent)
     await db.flush()
+    if body.phone and body.email and login_password:
+        await provision_parent_login(
+            db,
+            user["school_id"],
+            {
+                "phone": body.phone,
+                "email": body.email,
+                "login_password": login_password,
+                "name": body.name,
+                "first_name": body.name,
+            },
+            existing_parent_id=parent.id,
+        )
     await db.refresh(parent)
     return ok(ParentOut.model_validate(parent).model_dump())
 

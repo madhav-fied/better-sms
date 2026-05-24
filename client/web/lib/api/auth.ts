@@ -22,14 +22,6 @@ export const passwordLogin = (payload: {
   return apiClient.post('/auth/login', body).then((r) => r.data);
 };
 
-export const register = (payload: {
-  email: string;
-  phone: string;
-  password: string;
-  role?: string;
-  school_id?: string;
-}) => apiClient.post('/auth/register', payload).then((r) => r.data);
-
 export const forgotPassword = (payload: {
   email: string;
   school_id?: string | null;

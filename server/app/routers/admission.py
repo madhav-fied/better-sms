@@ -7,6 +7,7 @@ from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.admission import Enquiry, Registration, ParentGuardian
 from app.models.core import AcademicYear
+from app.services.parent_auth import provision_parent_login, parent_guardian_provision_data, parent_guardian_row_data
 from app.schemas.admission import (
     EnquiryCreate, EnquiryUpdate, EnquiryOut,
     EnquiryStatusUpdate, RegistrationStatusUpdate,
@@ -16,6 +17,25 @@ from app.schemas.admission import (
 from app.schemas.common import Response, ok, err
 
 router = APIRouter()
+
+
+async def _add_registration_guardians(
+    db: AsyncSession,
+    school_id: str,
+    reg_id: str,
+    guardians_data: list,
+) -> None:
+    for gd in guardians_data:
+        pg_dict = parent_guardian_provision_data(gd)
+        if not pg_dict.get("name"):
+            pg_dict["name"] = f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip()
+        parent_id = None
+        if pg_dict.get("phone"):
+            parent_id = await provision_parent_login(db, school_id, pg_dict)
+        row = parent_guardian_row_data(gd)
+        if parent_id:
+            row["parent_id"] = parent_id
+        db.add(ParentGuardian(registration_id=reg_id, **row))
 
 
 def _reg_out(reg: Registration, guardians: list) -> dict:
@@ -145,9 +165,7 @@ async def convert_enquiry(
     )
     db.add(reg)
     await db.flush()
-    for gd in guardians_data:
-        pg = ParentGuardian(registration_id=reg.id, **gd.model_dump())
-        db.add(pg)
+    await _add_registration_guardians(db, school_id, reg.id, guardians_data)
     await db.flush()
     await db.refresh(reg)
     guardians_res = await db.execute(select(ParentGuardian).where(ParentGuardian.registration_id == reg.id))
@@ -216,9 +234,7 @@ async def create_registration(
     )
     db.add(reg)
     await db.flush()
-    for gd in guardians_data:
-        pg = ParentGuardian(registration_id=reg.id, **gd.model_dump())
-        db.add(pg)
+    await _add_registration_guardians(db, school_id, reg.id, guardians_data)
     await db.flush()
     await db.refresh(reg)
     guardians_res = await db.execute(select(ParentGuardian).where(ParentGuardian.registration_id == reg.id))

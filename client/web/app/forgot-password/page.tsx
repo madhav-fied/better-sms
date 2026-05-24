@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell
       title="Forgot password"
-      subtitle="Enter your email and we will send you a reset link."
+      subtitle="Enter the email address on your account. Parents and staff use the email set by your school admin."
       footer={
         <p className="text-center text-sm text-slate-600">
           <Link href="/login" className="font-medium text-slate-900 underline-offset-4 hover:underline">

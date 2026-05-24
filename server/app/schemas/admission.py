@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional, List, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app.models.admission import EnquiryStatus, RegistrationStatus, ParentRelation
 
@@ -50,8 +50,43 @@ class ParentGuardianCreate(BaseModel):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
+    login_password: Optional[str] = None
     occupation: Optional[str] = None
     is_primary: bool = False
+    qualification: Optional[str] = None
+    aadhar_no: Optional[str] = None
+    dob: Optional[date] = None
+    bank_account: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    annual_income: Optional[int] = None
+    photo_url: Optional[str] = None
+    anniversary_date: Optional[date] = None
+    address: Optional[str] = None
+    guardian_relation: Optional[str] = None
+    alternate_mobile: Optional[str] = None
+    alternate_email: Optional[str] = None
+    emergency_mobile: Optional[str] = None
+
+    @model_validator(mode="after")
+    def require_login_credentials(self) -> "ParentGuardianCreate":
+        if self.phone and self.phone.strip():
+            if not self.email or not self.email.strip():
+                raise ValueError("Parent email is required when phone is provided")
+            if not self.login_password:
+                raise ValueError("Parent password is required when phone is provided")
+        return self
+
+
+class ParentGuardianUpdate(BaseModel):
+    relation: Optional[ParentRelation] = None
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    login_password: Optional[str] = None
+    occupation: Optional[str] = None
+    is_primary: Optional[bool] = None
     qualification: Optional[str] = None
     aadhar_no: Optional[str] = None
     dob: Optional[date] = None

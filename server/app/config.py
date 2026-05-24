@@ -19,17 +19,6 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
-    # Fast2SMS (production)
-    fast2sms_api_key: str = ""
-    fast2sms_sender_id: str = "SKEDUC"
-    fast2sms_template_id: str = ""
-    # Dev mode: if True, OTPs are logged to console instead of sent via SMS
-    otp_dev_mode: bool = True
-    # OTP settings
-    otp_ttl_minutes: int = 10
-    otp_max_attempts: int = 5
-    otp_rate_limit_count: int = 3
-    otp_rate_limit_minutes: int = 15
 
     @field_validator("database_url", mode="before")
     @classmethod

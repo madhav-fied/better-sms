@@ -191,10 +191,6 @@ export default function LoginPage() {
           <Link href="/forgot-password" className="font-medium text-slate-900 underline-offset-4 hover:underline">
             Forgot password
           </Link>
-          {' · '}
-          <Link href="/register" className="font-medium text-slate-900 underline-offset-4 hover:underline">
-            Register school
-          </Link>
         </p>
       </div>
     </div>

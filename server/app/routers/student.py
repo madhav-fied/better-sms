@@ -10,32 +10,18 @@ from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.student import Student
 from app.models.admission import ParentGuardian
-from app.models.auth import SchoolUser, UserRole
-from app.models.parent import Parent
+from app.models.auth import SchoolUser
 from app.models.core import AcademicYear, ClassSection
 from app.schemas.student import StudentCreate, StudentUpdate, StudentOut
-from app.schemas.admission import ParentGuardianCreate, ParentGuardianOut
+from app.schemas.admission import ParentGuardianCreate, ParentGuardianUpdate, ParentGuardianOut
 from app.schemas.common import Response, ok
-from app.utils import normalize_phone
+from app.services.parent_auth import (
+    provision_parent_login,
+    parent_guardian_row_data,
+    parent_guardian_provision_data,
+)
 
 router = APIRouter()
-
-
-async def _provision_parent_login(db: AsyncSession, school_id: str, pg_dict: dict) -> str | None:
-    raw_phone = pg_dict.get("phone")
-    if not raw_phone:
-        return None
-    phone = normalize_phone(raw_phone)
-    parent = Parent(
-        school_id=school_id,
-        name=pg_dict.get("name") or f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip(),
-        phone=phone,
-        email=pg_dict.get("email"),
-    )
-    db.add(parent)
-    await db.flush()
-    db.add(SchoolUser(school_id=school_id, role=UserRole.parent, phone=phone, entity_id=parent.id))
-    return parent.id
 
 
 async def _build_responses(db: AsyncSession, students: list[Student]) -> list[dict]:
@@ -117,13 +103,17 @@ async def create_student(
     await db.refresh(student)
 
     for pg_data in parent_guardians_data:
-        pg_dict = pg_data if isinstance(pg_data, dict) else pg_data.model_dump(exclude_none=True)
+        if isinstance(pg_data, dict):
+            pg_dict = {k: v for k, v in pg_data.items() if v is not None}
+        else:
+            pg_dict = parent_guardian_provision_data(pg_data)
         if not pg_dict.get("name"):
             pg_dict["name"] = f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip()
-        parent_id = await _provision_parent_login(db, school_id, pg_dict)
+        parent_id = await provision_parent_login(db, school_id, pg_dict)
+        row = {k: v for k, v in pg_dict.items() if k != "login_password"}
         if parent_id:
-            pg_dict["parent_id"] = parent_id
-        pg = ParentGuardian(id=str(uuid.uuid4()), student_id=student.id, **pg_dict)
+            row["parent_id"] = parent_id
+        pg = ParentGuardian(id=str(uuid.uuid4()), student_id=student.id, **row)
         db.add(pg)
 
     await db.flush()
@@ -443,13 +433,14 @@ async def add_parent_guardian(
     res = await db.execute(select(Student).where(Student.id == student_id, Student.school_id == user["school_id"]))
     if not res.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Student not found")
-    pg_dict = body.model_dump(exclude_none=True)
+    pg_dict = parent_guardian_provision_data(body)
     if not pg_dict.get("name"):
         pg_dict["name"] = f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip()
-    parent_id = await _provision_parent_login(db, user["school_id"], pg_dict)
+    parent_id = await provision_parent_login(db, user["school_id"], pg_dict)
+    row = parent_guardian_row_data(body)
     if parent_id:
-        pg_dict["parent_id"] = parent_id
-    pg = ParentGuardian(id=str(uuid.uuid4()), student_id=student_id, **pg_dict)
+        row["parent_id"] = parent_id
+    pg = ParentGuardian(id=str(uuid.uuid4()), student_id=student_id, **row)
     db.add(pg)
     await db.flush()
     await db.refresh(pg)
@@ -460,7 +451,7 @@ async def add_parent_guardian(
 async def update_parent_guardian(
     student_id: str,
     pg_id: str,
-    body: ParentGuardianCreate,
+    body: ParentGuardianUpdate,
     user: CurrentUser,
     _: None = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
@@ -471,8 +462,24 @@ async def update_parent_guardian(
     pg = res.scalar_one_or_none()
     if not pg:
         raise HTTPException(status_code=404, detail="Parent guardian not found")
-    for k, v in body.model_dump(exclude_none=True).items():
+    updates = body.model_dump(exclude_none=True)
+    login_password = updates.pop("login_password", None)
+    for k, v in updates.items():
         setattr(pg, k, v)
+    if updates.get("phone") and updates.get("email") and login_password:
+        parent_id = await provision_parent_login(
+            db,
+            user["school_id"],
+            {
+                **updates,
+                "login_password": login_password,
+                "first_name": updates.get("first_name") or pg.first_name or "",
+                "name": updates.get("name") or pg.name,
+            },
+            existing_parent_id=pg.parent_id,
+        )
+        if parent_id:
+            pg.parent_id = parent_id
     await db.flush()
     await db.refresh(pg)
     return ok(ParentGuardianOut.model_validate(pg).model_dump())

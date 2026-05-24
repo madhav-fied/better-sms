@@ -34,19 +34,6 @@ class SchoolUser(Base):
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False)
 
 
-class OtpRequest(Base):
-    __tablename__ = "otp_requests"
-
-    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    phone: Mapped[str] = mapped_column(sa.String(15), nullable=False)
-    school_id: Mapped[Optional[str]] = mapped_column(sa.String(36), nullable=True)
-    otp_hash: Mapped[str] = mapped_column(sa.String(255), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
-    used: Mapped[bool] = mapped_column(sa.Boolean, default=False, nullable=False)
-    attempt_count: Mapped[int] = mapped_column(sa.Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False)
-
-
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 

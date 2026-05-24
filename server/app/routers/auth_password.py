@@ -73,37 +73,6 @@ async def _find_users_by_identifier(
     return list(res.scalars().all())
 
 
-class RegisterBody(BaseModel):
-    email: str
-    phone: str
-    password: str
-    role: str = "admin"
-    school_id: Optional[str] = None
-
-    @field_validator("email")
-    @classmethod
-    def validate_email(cls, v: str) -> str:
-        e = _normalize_email(v)
-        if not EMAIL_RE.match(e):
-            raise ValueError("Invalid email address")
-        return e
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        if not v:
-            raise ValueError("Password is required")
-        return v
-
-    @field_validator("phone")
-    @classmethod
-    def validate_phone(cls, v: str) -> str:
-        p = v.strip()
-        if not p:
-            raise ValueError("Phone number is required")
-        return p
-
-
 class PasswordLoginBody(BaseModel):
     identifier: str  # email or phone
     password: str
@@ -135,60 +104,6 @@ class ResetPasswordBody(BaseModel):
         if not v:
             raise ValueError("Password is required")
         return v
-
-
-@router.post("/auth/register", response_model=Response)
-async def register(body: RegisterBody, db: AsyncSession = Depends(get_db)):
-    if body.role == "superadmin":
-        raise HTTPException(status_code=400, detail="Cannot self-register as superadmin")
-
-    school_id = body.school_id
-    if not school_id:
-        schools_res = await db.execute(select(School).where(School.is_active == True).limit(2))
-        schools = schools_res.scalars().all()
-        if len(schools) == 0:
-            raise HTTPException(status_code=400, detail="No school available for registration")
-        if len(schools) > 1:
-            raise HTTPException(status_code=400, detail="school_id is required")
-        school_id = schools[0].id
-
-    school_res = await db.execute(select(School).where(School.id == school_id, School.is_active == True))
-    if not school_res.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="School not found")
-
-    dup_email = await db.execute(
-        select(SchoolUser).where(
-            SchoolUser.email == body.email,
-            SchoolUser.is_active == True,
-            school_id_filter(SchoolUser.school_id, school_id),
-        )
-    )
-    if dup_email.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Email already registered for this school")
-
-    dup_phone = await db.execute(
-        select(SchoolUser).where(
-            SchoolUser.phone == body.phone,
-            SchoolUser.is_active == True,
-            SchoolUser.school_id == school_id,
-        )
-    )
-    if dup_phone.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Phone already registered for this school")
-
-    user = SchoolUser(
-        school_id=school_id,
-        phone=body.phone,
-        email=body.email,
-        password_hash=hash_password(body.password),
-        role=body.role,
-    )
-    db.add(user)
-    await db.flush()
-    await db.refresh(user)
-
-    session = await create_user_session(db, user)
-    return ok(session)
 
 
 @router.post("/auth/login", response_model=Response)
