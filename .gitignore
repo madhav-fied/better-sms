@@ -1,4 +1,5 @@
 .vercel
+.railway/
 node_modules/
 .env
 .env.*

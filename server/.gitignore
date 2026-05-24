@@ -18,6 +18,9 @@ env/
 # Environment
 .env
 
+# Railway CLI local link (machine-specific)
+.railway/
+
 # Testing
 .pytest_cache/
 .coverage
