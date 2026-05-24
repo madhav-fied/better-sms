@@ -336,7 +336,7 @@ async def mark_staff_attendance(
 @router.get("/attendance/staff", response_model=Response)
 async def list_staff_attendance(
     staff_id: str = Query(None),
-    date: Optional[date] = Query(None),
+    date: Optional[date_type] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
