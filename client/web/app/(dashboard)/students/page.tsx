@@ -74,7 +74,7 @@ export default function StudentsPage() {
                 Name
               </TableHead>
               <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Roll number
+                Adm. No
               </TableHead>
               <TableHead className="bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 Class
@@ -107,8 +107,11 @@ export default function StudentsPage() {
                       >
                         {s.name}
                       </Link>
+                      {s.full_student_uid && (
+                        <p className="mt-0.5 text-xs text-slate-400">{s.full_student_uid}</p>
+                      )}
                     </TableCell>
-                    <TableCell className="px-6 py-4 text-slate-600">{s.roll_number}</TableCell>
+                    <TableCell className="px-6 py-4 text-slate-600">{s.admission_no}</TableCell>
                     <TableCell className="px-6 py-4 text-slate-700">
                       {s.class_name} {s.section}
                     </TableCell>

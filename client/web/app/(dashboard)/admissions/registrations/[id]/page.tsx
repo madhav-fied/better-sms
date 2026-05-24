@@ -5,20 +5,41 @@ import { getRegistration, acceptRegistration, rejectRegistration, admitStudent }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { use } from 'react';
+import { use, useState } from 'react';
 import apiClient from '@/lib/api/client';
-import { useState } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import ActionLink from '@/components/enterprise/ActionLink';
 import DataSection from '@/components/enterprise/DataSection';
 import LabeledSelect from '@/components/enterprise/LabeledSelect';
 
-function studentLabel(sf: { first_name?: string; last_name?: string } | null | undefined) {
+type StudentFields = {
+  first_name?: string;
+  last_name?: string;
+  dob?: string;
+  sms_mobile?: string;
+  email?: string;
+};
+
+type Guardian = {
+  id?: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  relation: string;
+  phone?: string;
+  email?: string;
+  is_primary?: boolean;
+};
+
+function studentLabel(sf: StudentFields | null | undefined) {
   if (!sf) return '—';
   return `${sf.first_name ?? ''} ${sf.last_name ?? ''}`.trim() || '—';
+}
+
+function guardianName(g: Guardian) {
+  return (g.name ?? `${g.first_name ?? ''} ${g.last_name ?? ''}`.trim()) || '—';
 }
 
 export default function RegistrationDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,6 +54,8 @@ export default function RegistrationDetailPage({ params }: { params: Promise<{ i
     queryFn: () => apiClient.get('/class-sections').then((r) => r.data?.data ?? []),
   });
   const r = data?.data;
+  const sf: StudentFields | null = r?.student_fields ?? null;
+  const guardians: Guardian[] = r?.parent_guardians ?? [];
 
   const acceptMutation = useMutation({
     mutationFn: () => acceptRegistration(id),
@@ -80,7 +103,7 @@ export default function RegistrationDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-6 max-w-xl">
       <PageHeader
-        title={studentLabel(r.student_fields)}
+        title={studentLabel(sf)}
         description="Registration review and admission."
         actions={
           <>
@@ -92,45 +115,70 @@ export default function RegistrationDetailPage({ params }: { params: Promise<{ i
         }
       />
 
-      <DataSection title="Registration details">
+      {/* Student details */}
+      <DataSection title="Student details">
         <dl className="divide-y divide-slate-200 px-6">
           <DetailRow label="Submitted" value={r.submitted_at?.split('T')[0] ?? '—'} />
-          {r.parent_guardians?.map((g: { name: string; relation: string; mobile?: string }, i: number) => (
-            <DetailRow key={i} label={`Guardian (${g.relation})`} value={`${g.name}${g.mobile ? ` · ${g.mobile}` : ''}`} />
-          ))}
+          {sf?.dob && <DetailRow label="Date of birth" value={String(sf.dob)} />}
+          {sf?.sms_mobile && <DetailRow label="Mobile" value={sf.sms_mobile} />}
+          {sf?.email && <DetailRow label="Email" value={sf.email} />}
         </dl>
       </DataSection>
 
+      {/* Guardians */}
+      {guardians.length > 0 && (
+        <DataSection title="Parents & Guardians">
+          <div className="divide-y divide-slate-200">
+            {guardians.map((g, i) => (
+              <div key={g.id ?? i} className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-900">{guardianName(g)}</span>
+                  <span className="text-xs text-slate-500 capitalize">{g.relation}</span>
+                  {g.is_primary && (
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Primary</span>
+                  )}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
+                  {g.phone && <span>{g.phone}</span>}
+                  {g.email && <span>{g.email}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DataSection>
+      )}
+
       {r.status === 'pending' && (
         <div className="flex gap-2">
-          <Button onClick={() => acceptMutation.mutate()} disabled={acceptMutation.isPending}>
-            Accept
-          </Button>
-          <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
-            Reject
-          </Button>
+          <Button onClick={() => acceptMutation.mutate()} disabled={acceptMutation.isPending}>Accept</Button>
+          <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>Reject</Button>
         </div>
       )}
 
       {r.status === 'accepted' && (
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900">Admit to class</h2>
-          <div className="mt-4 max-w-sm">
-            <LabeledSelect
-              label="Class section"
-              value={classSectionId}
-              onChange={(e) => setClassSectionId(e.target.value)}
-              options={(sections ?? []).map((cs: { id: string; class_name: string; section: string }) => ({
-                value: cs.id,
-                label: `${cs.class_name} ${cs.section}`,
-              }))}
-              placeholder="Select class"
-            />
+        <DataSection title="Admit to class">
+          <div className="p-6">
+            <div className="max-w-sm">
+              <LabeledSelect
+                label="Class section"
+                value={classSectionId}
+                onChange={(e) => setClassSectionId(e.target.value)}
+                options={(sections ?? []).map((cs: { id: string; class_name: string; section: string }) => ({
+                  value: cs.id,
+                  label: `${cs.class_name} ${cs.section}`,
+                }))}
+                placeholder="Select class"
+              />
+            </div>
+            <Button
+              className="mt-4"
+              onClick={() => admitMutation.mutate()}
+              disabled={admitMutation.isPending || !classSectionId}
+            >
+              Admit student
+            </Button>
           </div>
-          <Button className="mt-4" onClick={() => admitMutation.mutate()} disabled={admitMutation.isPending || !classSectionId}>
-            Admit student
-          </Button>
-        </section>
+        </DataSection>
       )}
     </div>
   );
@@ -138,8 +186,8 @@ export default function RegistrationDetailPage({ params }: { params: Promise<{ i
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 py-4 sm:grid-cols-[140px_1fr]">
-      <dt className="text-sm font-medium text-slate-600">{label}</dt>
+    <div className="grid gap-1 py-4 sm:grid-cols-[160px_1fr]">
+      <dt className="text-sm font-medium text-slate-500">{label}</dt>
       <dd className="text-sm text-slate-900">{value}</dd>
     </div>
   );
