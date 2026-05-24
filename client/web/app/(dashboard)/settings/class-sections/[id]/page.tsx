@@ -26,6 +26,8 @@ import {
 import { getStudents } from '@/lib/api/students';
 import { getStaff } from '@/lib/api/staff';
 import { changeClassSection, migrateStudents } from '@/lib/api/students';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionLink from '@/components/enterprise/ActionLink';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -338,20 +340,19 @@ export default function ClassDetailPage() {
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className="space-y-5 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/settings/class-sections" className="text-muted-foreground hover:text-foreground text-sm">
-          ← Back
-        </Link>
-        <div>
-          <h1 className="text-xl font-semibold">{title}</h1>
-          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-        </div>
-      </div>
+    <div className="space-y-6 max-w-5xl">
+      <PageHeader
+        title={title}
+        description={subtitle || 'Manage roster, subjects, and bulk student operations for this class section.'}
+        actions={
+          <ActionLink href="/settings/class-sections" variant="outline">
+            Back to class sections
+          </ActionLink>
+        }
+      />
 
       {/* Tab bar */}
-      <div className="flex gap-0 border-b border-border">
+      <div className="flex gap-0 rounded-t-xl border border-b-0 border-slate-200 bg-white shadow-sm">
         {(['roster', 'subjects'] as const).map((t) => (
           <button
             key={t}

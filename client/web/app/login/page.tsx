@@ -103,42 +103,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-sm bg-white rounded-lg border p-8 space-y-5">
-        <div>
-          <h1 className="text-lg font-semibold">Edulink</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            {step === 'credentials' ? 'Sign in to your account' : 'Select which account to use'}
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-white to-blue-50 p-4">
+      <svg className="pointer-events-none absolute right-0 top-0 h-64 w-64 text-blue-100" viewBox="0 0 200 200" aria-hidden>
+        <circle cx="100" cy="100" r="80" fill="currentColor" opacity="0.4" />
+      </svg>
+      <svg className="pointer-events-none absolute bottom-0 left-0 h-48 w-48 text-slate-200" viewBox="0 0 160 160" aria-hidden>
+        <rect x="20" y="40" width="120" height="80" rx="8" fill="currentColor" opacity="0.5" />
+      </svg>
+      <div className="relative w-full max-w-md space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">School Management</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Edulink</h1>
+          <p className="text-sm text-slate-600">
+            {step === 'credentials' ? 'Sign in with your email or phone number' : 'Select which account to use'}
           </p>
         </div>
 
         {step === 'credentials' && (
           <>
             <div className="space-y-2">
-              <Label>Email or phone</Label>
+              <Label htmlFor="login-identifier" className="text-slate-700">Email or phone</Label>
               <Input
+                id="login-identifier"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder="email@example.com or 10-digit phone"
                 autoComplete="username"
+                className="border-slate-200"
               />
             </div>
             <div className="space-y-2">
-              <Label>Password</Label>
+              <Label htmlFor="login-password" className="text-slate-700">Password</Label>
               <Input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={onKeyDown}
                 autoComplete="current-password"
+                className="border-slate-200"
               />
             </div>
-            <Button
-              className="w-full"
-              onClick={handleLogin}
-              disabled={loading || !identifier.trim() || !password}
-            >
+            <Button className="w-full" onClick={handleLogin} disabled={loading || !identifier.trim() || !password}>
               {loading ? 'Signing in…' : 'Sign in'}
             </Button>
           </>
@@ -147,13 +154,14 @@ export default function LoginPage() {
         {step === 'account' && (
           <>
             <div className="space-y-2">
-              <Label>Select account</Label>
+              <Label htmlFor="login-account" className="text-slate-700">Select account</Label>
               <select
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                id="login-account"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
               >
-                <option value="">— select account —</option>
+                <option value="">Choose an account…</option>
                 {loginAccounts.map((a) => (
                   <option key={a.user_id} value={a.user_id}>
                     {a.school_name} ({a.role})
@@ -162,29 +170,30 @@ export default function LoginPage() {
               </select>
             </div>
             <Button className="w-full" onClick={handleLogin} disabled={loading || !selectedUserId}>
-              {loading ? 'Signing in…' : 'Continue'}
+              {loading ? 'Signing in…' : 'Continue to dashboard'}
             </Button>
-            <button
+            <Button
               type="button"
-              className="w-full text-sm text-gray-400 hover:text-gray-600"
+              variant="outline"
+              className="w-full"
               onClick={() => {
                 setStep('credentials');
                 setLoginAccounts([]);
                 setSelectedUserId('');
               }}
             >
-              Back
-            </button>
+              Back to sign in
+            </Button>
           </>
         )}
 
-        <p className="text-center text-sm text-gray-500">
-          <Link href="/forgot-password" className="underline">
-            Forgot password?
+        <p className="text-center text-sm text-slate-600">
+          <Link href="/forgot-password" className="font-medium text-slate-900 underline-offset-4 hover:underline">
+            Forgot password
           </Link>
           {' · '}
-          <Link href="/register" className="underline">
-            Register
+          <Link href="/register" className="font-medium text-slate-900 underline-offset-4 hover:underline">
+            Register school
           </Link>
         </p>
       </div>

@@ -11,6 +11,9 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Staff } from '@/types/staff';
 import { use } from 'react';
+import PageHeader from '@/components/layout/PageHeader';
+import ActionLink from '@/components/enterprise/ActionLink';
+import EmptyState from '@/components/enterprise/EmptyState';
 
 const sel = 'w-full border border-input rounded-lg px-2.5 py-1.5 text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-ring/50 h-9';
 
@@ -173,16 +176,18 @@ function EditForm({ staffId, s }: { staffId: string; s: Staff }) {
   };
 
   return (
-    <div className="space-y-4 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Edit Staff — {s.first_name} {s.last_name ?? ''}</h1>
-          {s.emp_code && <p className="text-xs text-muted-foreground mt-0.5">Emp Code: {s.emp_code}</p>}
-        </div>
-        <Link href={`/staff/${staffId}`} className="text-sm text-muted-foreground hover:text-foreground">← Back</Link>
-      </div>
+    <div className="space-y-6 max-w-3xl">
+      <PageHeader
+        title={`Edit staff — ${s.first_name} ${s.last_name ?? ''}`.trim()}
+        description={s.emp_code ? `Employee code: ${s.emp_code}` : 'Update personal, professional, and job details.'}
+        actions={
+          <ActionLink href={`/staff/${staffId}`} variant="outline">
+            Back to profile
+          </ActionLink>
+        }
+      />
 
-      <div className="rounded-xl border bg-white overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* Tab bar */}
         <div className="flex gap-0 border-b bg-muted/30 overflow-x-auto">
           {TABS.map((t) => (
@@ -508,8 +513,23 @@ export default function StaffEditPage({ params }: { params: Promise<{ id: string
   const { data, isLoading } = useQuery({ queryKey: ['staff', id], queryFn: () => getStaffMember(id) });
   const s: Staff | undefined = data?.data;
 
-  if (isLoading) return <Skeleton className="h-64 w-full" />;
-  if (!s) return <p className="text-muted-foreground">Staff member not found</p>;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64 rounded-lg" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+  if (!s) {
+    return (
+      <EmptyState
+        title="Staff member not found"
+        description="This staff record may have been removed or you may not have access."
+        action={<ActionLink href="/staff">Back to staff list</ActionLink>}
+      />
+    );
+  }
 
   return <EditForm staffId={id} s={s} />;
 }
