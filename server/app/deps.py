@@ -37,7 +37,7 @@ async def get_current_user(
     now = datetime.now(timezone.utc)
 
     result = await db.execute(
-        select(SessionModel, SchoolUser.entity_id)
+        select(SessionModel, SchoolUser.entity_id, SchoolUser.school_id)
         .join(SchoolUser, SessionModel.school_user_id == SchoolUser.id)
         .where(
             SessionModel.token_hash == token_hash,
@@ -48,7 +48,7 @@ async def get_current_user(
     if not row:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session")
 
-    session, entity_id = row
+    session, entity_id, user_school_id = row
 
     # Sliding renewal: reset TTL if within last 7 days
     slide_threshold = session.expires_at - timedelta(days=7)
@@ -56,11 +56,19 @@ async def get_current_user(
         new_expires = now + timedelta(days=settings.session_ttl_days)
         session.expires_at = new_expires
     session.last_seen_at = now
+
+    if session.role == "superadmin":
+        school_id = session.school_id
+    else:
+        school_id = session.school_id or user_school_id
+        if school_id and session.school_id != school_id:
+            session.school_id = school_id
+
     await db.flush()
 
     user = {
         "user_id": session.school_user_id,
-        "school_id": session.school_id,
+        "school_id": school_id,
         "role": session.role,
         "entity_id": entity_id,
     }
