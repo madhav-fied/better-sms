@@ -6,6 +6,7 @@ import { getStudent } from '@/lib/api/students';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRole } from '@/hooks/useRole';
 import { useAuthStore } from '@/store/auth';
+import { storage } from '@/lib/storage';
 import PageHeader from '@/components/layout/PageHeader';
 import PageHero from '@/components/enterprise/PageHero';
 import ActionLink from '@/components/enterprise/ActionLink';
@@ -77,12 +78,20 @@ function StudentDashboard() {
   );
 }
 
+function normalizeBirthdays(payload: unknown): Array<{ name: string; dob: string; type?: string }> {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { birthdays?: unknown }).birthdays)) {
+    return (payload as { birthdays: Array<{ name: string; dob: string; type?: string }> }).birthdays;
+  }
+  return [];
+}
+
 function AdminDashboard() {
   const summary = useQuery({ queryKey: ['dashboard-summary'], queryFn: getDashboardSummary });
   const birthdays = useQuery({ queryKey: ['birthdays'], queryFn: getBirthdays });
 
   const s = summary.data?.data;
-  const birthdayList = birthdays.data?.data ?? [];
+  const birthdayList = normalizeBirthdays(birthdays.data?.data);
 
   return (
     <div className="space-y-6">
@@ -118,8 +127,8 @@ function AdminDashboard() {
           </div>
         ) : (
           <ul className="divide-y divide-slate-200">
-            {birthdayList.slice(0, 12).map((b: { name: string; dob: string; type?: string }, i: number) => (
-              <li key={i} className="flex items-center justify-between px-6 py-3 text-sm">
+            {birthdayList.slice(0, 12).map((b, i) => (
+              <li key={`${b.type ?? 'person'}-${b.name}-${i}`} className="flex items-center justify-between px-6 py-3 text-sm">
                 <span className="text-slate-900">
                   {b.name} <span className="text-slate-400 capitalize">({b.type})</span>
                 </span>
@@ -136,9 +145,31 @@ function AdminDashboard() {
   );
 }
 
+function SuperadminDashboard() {
+  const activeSchoolId = storage.getActiveSchoolId();
+
+  if (!activeSchoolId) {
+    return (
+      <div className="space-y-6 max-w-2xl">
+        <PageHeader title="Platform dashboard" description="Manage schools and platform-wide settings." />
+        <PageHero
+          title="Welcome back"
+          subtitle="Select a school from the Schools page to view its dashboard metrics, or use the sidebar to navigate."
+        />
+        <ActionLink href="/schools" className="inline-flex">
+          Go to schools
+        </ActionLink>
+      </div>
+    );
+  }
+
+  return <AdminDashboard />;
+}
+
 export default function DashboardPage() {
   const { role } = useRole();
   if (role === 'parent') return <ParentDashboard />;
   if (role === 'student') return <StudentDashboard />;
+  if (role === 'superadmin') return <SuperadminDashboard />;
   return <AdminDashboard />;
 }
