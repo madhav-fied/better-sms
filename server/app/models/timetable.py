@@ -32,7 +32,7 @@ class Timetable(Base):
     class_section_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("class_sections.id"), nullable=False)
     academic_year_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("academic_years.id"), nullable=False)
     status: Mapped[str] = mapped_column(sa.Enum(TimetableStatus, native_enum=False), nullable=False, default=TimetableStatus.draft)
-    slots: Mapped[Optional[dict]] = mapped_column("entries", sa.JSON, nullable=True)
+    slots: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
     created_by: Mapped[str] = mapped_column(sa.String(36), nullable=False)
     published_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False)

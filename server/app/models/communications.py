@@ -130,7 +130,7 @@ class ConcernMessage(Base):
 
 
 class Syllabus(Base):
-    __tablename__ = "syllabus"
+    __tablename__ = "syllabuses"
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     school_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("schools.id"), nullable=False)
@@ -154,7 +154,7 @@ class SyllabusAttachment(Base):
     __tablename__ = "syllabus_attachments"
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    syllabus_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("syllabus.id"), nullable=False)
+    syllabus_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("syllabuses.id"), nullable=False)
     filename: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     s3_key: Mapped[Optional[str]] = mapped_column(sa.String(500), nullable=True)
     mime_type: Mapped[Optional[str]] = mapped_column(sa.String(100), nullable=True)
