@@ -10,7 +10,7 @@ from app.database import Base
 
 
 class EnquiryStatus(str, enum.Enum):
-    new = "new"
+    open = "open"
     converted = "converted"
     rejected = "rejected"
 
@@ -34,13 +34,16 @@ class Enquiry(Base):
     school_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("schools.id"), nullable=False)
     enq_no: Mapped[str] = mapped_column(sa.String(30), nullable=False)
     student_name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
-    parent_name: Mapped[Optional[str]] = mapped_column(sa.String(255), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(sa.String(20), nullable=True)
-    email: Mapped[Optional[str]] = mapped_column(sa.String(255), nullable=True)
-    class_seeking: Mapped[Optional[str]] = mapped_column(sa.String(50), nullable=True)
-    source: Mapped[Optional[str]] = mapped_column(sa.String(50), nullable=True)
+    parent_name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    mobile: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    date: Mapped[date] = mapped_column(sa.Date, nullable=False)
+    purpose: Mapped[str] = mapped_column(sa.String(30), nullable=False, default="new_admission")
+    dob: Mapped[Optional[date]] = mapped_column(sa.Date, nullable=True)
+    class_section_id: Mapped[Optional[str]] = mapped_column(
+        sa.String(36), sa.ForeignKey("class_sections.id"), nullable=True
+    )
     notes: Mapped[Optional[str]] = mapped_column(sa.Text, nullable=True)
-    status: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="new")
+    status: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="open")
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False)
 
     registrations: Mapped[list["Registration"]] = relationship("Registration", back_populates="enquiry")

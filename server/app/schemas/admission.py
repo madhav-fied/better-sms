@@ -7,22 +7,24 @@ from app.models.admission import EnquiryStatus, RegistrationStatus, ParentRelati
 
 class EnquiryCreate(BaseModel):
     student_name: str
-    parent_name: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    class_seeking: Optional[str] = None
-    source: Optional[str] = None
+    parent_name: str
+    mobile: str
+    date: date
+    purpose: str = "new_admission"
     notes: Optional[str] = None
+    dob: Optional[date] = None
+    class_section_id: Optional[str] = None
 
 
 class EnquiryUpdate(BaseModel):
     student_name: Optional[str] = None
     parent_name: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    class_seeking: Optional[str] = None
-    source: Optional[str] = None
+    mobile: Optional[str] = None
+    date: Optional[date] = None
+    purpose: Optional[str] = None
     notes: Optional[str] = None
+    dob: Optional[date] = None
+    class_section_id: Optional[str] = None
     status: Optional[EnquiryStatus] = None
 
 
@@ -31,12 +33,13 @@ class EnquiryOut(BaseModel):
     school_id: str
     enq_no: str
     student_name: str
-    parent_name: Optional[str]
-    phone: Optional[str]
-    email: Optional[str]
-    class_seeking: Optional[str]
-    source: Optional[str]
+    parent_name: str
+    mobile: str
+    date: date
+    purpose: str
     notes: Optional[str]
+    dob: Optional[date] = None
+    class_section_id: Optional[str] = None
     status: str
     created_at: datetime
 

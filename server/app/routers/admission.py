@@ -15,6 +15,7 @@ from app.schemas.admission import (
     ParentGuardianOut, AdmitStudentIn,
 )
 from app.schemas.common import Response, ok, err
+from app.utils import normalize_phone
 
 router = APIRouter()
 
@@ -75,7 +76,9 @@ async def create_enquiry(
         select(func.count()).select_from(Enquiry).where(Enquiry.school_id == school_id)
     )
     seq = (count_res.scalar_one() or 0) + 1
-    enq = Enquiry(school_id=school_id, enq_no=_enq_no(year, seq), **body.model_dump())
+    payload = body.model_dump()
+    payload["mobile"] = normalize_phone(payload["mobile"])
+    enq = Enquiry(school_id=school_id, enq_no=_enq_no(year, seq), status="open", **payload)
     db.add(enq)
     await db.flush()
     await db.refresh(enq)
@@ -121,7 +124,10 @@ async def update_enquiry(
     enq = res.scalar_one_or_none()
     if not enq:
         raise HTTPException(status_code=404, detail="Enquiry not found")
-    for k, v in body.model_dump(exclude_none=True).items():
+    updates = body.model_dump(exclude_none=True)
+    if "mobile" in updates:
+        updates["mobile"] = normalize_phone(updates["mobile"])
+    for k, v in updates.items():
         setattr(enq, k, v)
     await db.flush()
     await db.refresh(enq)
