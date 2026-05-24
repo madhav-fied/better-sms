@@ -67,11 +67,13 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           </Badge>
         </div>
         <dl className="divide-y divide-slate-200 px-6 py-2">
-          <DetailRow label="Roll number" value={s.roll_number} />
-          <DetailRow label="Class" value={`${s.class_name} ${s.section}`} />
-          {s.phone ? <DetailRow label="Phone" value={s.phone} /> : null}
-          {s.dob ? <DetailRow label="Date of birth" value={s.dob} /> : null}
-          {s.address ? <DetailRow label="Address" value={s.address} /> : null}
+          {s.full_student_uid && <DetailRow label="Student ID (Login ID)" value={s.full_student_uid} />}
+          <DetailRow label="Admission no." value={s.admission_no} />
+          {s.roll_number && <DetailRow label="Roll number" value={s.roll_number} />}
+          <DetailRow label="Class" value={`${s.class_name ?? ''} ${s.section ?? ''}`.trim() || '—'} />
+          {s.sms_mobile && <DetailRow label="Phone" value={s.sms_mobile} />}
+          {s.dob && <DetailRow label="Date of birth" value={s.dob} />}
+          {s.contact_address && <DetailRow label="Address" value={s.contact_address} />}
         </dl>
       </section>
     </div>

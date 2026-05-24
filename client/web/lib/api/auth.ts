@@ -22,18 +22,7 @@ export const passwordLogin = (payload: {
   return apiClient.post('/auth/login', body).then((r) => r.data);
 };
 
-export const forgotPassword = (payload: {
-  email: string;
-  school_id?: string | null;
-  user_id?: string;
-}) => {
-  const body: Record<string, string | null> = { email: payload.email };
-  if (payload.school_id !== undefined) body.school_id = payload.school_id;
-  if (payload.user_id) body.user_id = payload.user_id;
-  return apiClient.post('/auth/forgot-password', body).then((r) => r.data);
-};
-
-export const resetPassword = (token: string, password: string) =>
-  apiClient.post('/auth/reset-password', { token, password }).then((r) => r.data);
+export const changePassword = (payload: { new_password: string; current_password?: string }) =>
+  apiClient.post('/auth/change-password', payload).then((r) => r.data);
 
 export const getMe = () => apiClient.get('/auth/me').then((r) => r.data);

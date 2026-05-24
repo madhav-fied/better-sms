@@ -14,6 +14,8 @@ from app.schemas.staff import (
     TeacherSubjectCreate, TeacherSubjectOut,
 )
 from app.schemas.common import Response, ok
+from app.services.password import hash_password
+from app.utils import normalize_phone
 
 router = APIRouter()
 
@@ -39,8 +41,15 @@ async def create_staff(
     staff = Staff(school_id=school_id, **data)
     db.add(staff)
     await db.flush()
-    if staff.mobile:
-        db.add(SchoolUser(school_id=school_id, role=UserRole.staff, phone=staff.mobile, entity_id=staff.id))
+    if staff.mobile and staff.category == "teacher":
+        phone = normalize_phone(staff.mobile)
+        db.add(SchoolUser(
+            school_id=school_id,
+            role=UserRole.teacher,
+            phone=phone,
+            password_hash=hash_password(phone),
+            entity_id=staff.id,
+        ))
     res = await db.execute(select(Staff).options(selectinload(Staff.job_detail)).where(Staff.id == staff.id))
     staff = res.scalar_one()
     return ok(StaffOut.model_validate(staff).model_dump())

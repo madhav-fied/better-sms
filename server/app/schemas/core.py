@@ -25,6 +25,7 @@ class SchoolUpdate(BaseModel):
 
 class SchoolOut(BaseModel):
     id: str
+    school_code: int
     name: str
     branch_name: Optional[str]
     address: Optional[str]

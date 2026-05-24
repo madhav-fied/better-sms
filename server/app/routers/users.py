@@ -3,13 +3,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.auth import SchoolUser, Session as SessionModel
 from app.models.staff import Staff
-from app.models.student import Student
 from app.models.parent import Parent
 from app.schemas.common import Response, ok
 from app.utils import normalize_phone
@@ -42,13 +41,11 @@ def _user_out(u: SchoolUser, name: str | None = None) -> dict:
 
 async def _resolve_names(db: AsyncSession, users: list[SchoolUser]) -> dict[str, str]:
     """Return a map of user.id → display name by joining entity tables."""
-    staff_ids, student_ids, parent_ids = [], [], []
+    staff_ids, parent_ids = [], []
     for u in users:
         if u.entity_id:
-            if u.role in ("teacher", "staff"):
+            if u.role in ("teacher", "admin"):
                 staff_ids.append(u.entity_id)
-            elif u.role == "student":
-                student_ids.append(u.entity_id)
             elif u.role == "parent":
                 parent_ids.append(u.entity_id)
 
@@ -56,9 +53,6 @@ async def _resolve_names(db: AsyncSession, users: list[SchoolUser]) -> dict[str,
     if staff_ids:
         rows = (await db.execute(select(Staff.id, Staff.name).where(Staff.id.in_(staff_ids)))).all()
         entity_name.update({r[0]: r[1] for r in rows})
-    if student_ids:
-        rows = (await db.execute(select(Student.id, Student.first_name, Student.last_name).where(Student.id.in_(student_ids)))).all()
-        entity_name.update({r[0]: f"{r[1]} {r[2]}".strip() for r in rows})
     if parent_ids:
         rows = (await db.execute(select(Parent.id, Parent.name).where(Parent.id.in_(parent_ids)))).all()
         entity_name.update({r[0]: r[1] for r in rows})
