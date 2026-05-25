@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.database import get_db
 from app.deps import CurrentUser, require_superadmin
@@ -11,6 +11,8 @@ from app.models.core import School
 from app.models.auth import SchoolUser
 from app.schemas.core import SchoolOut
 from app.schemas.common import Response, ok
+from app.services.password import hash_password
+from app.utils import normalize_phone
 
 router = APIRouter()
 
@@ -33,7 +35,9 @@ async def onboard_school(
     _: None = Depends(require_superadmin),
     db: AsyncSession = Depends(get_db),
 ):
+    max_code = (await db.execute(select(func.coalesce(func.max(School.school_code), 0)))).scalar_one()
     school = School(
+        school_code=max_code + 1,
         name=body.name,
         branch_name=body.branch_name,
         address=body.address,
@@ -46,10 +50,10 @@ async def onboard_school(
     await db.flush()
     await db.refresh(school)
 
-    # Check for phone conflict within this school (defensive — new school, so always clear)
+    admin_phone = normalize_phone(body.admin_phone)
     existing = await db.execute(
         select(SchoolUser).where(
-            SchoolUser.phone == body.admin_phone,
+            SchoolUser.phone == admin_phone,
             SchoolUser.school_id == school.id,
         )
     )
@@ -58,8 +62,9 @@ async def onboard_school(
 
     admin_user = SchoolUser(
         school_id=school.id,
-        phone=body.admin_phone,
+        phone=admin_phone,
         role="admin",
+        password_hash=hash_password(admin_phone),
     )
     db.add(admin_user)
     await db.flush()

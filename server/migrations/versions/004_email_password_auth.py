@@ -1,9 +1,12 @@
-"""Email and password authentication
+"""Email and password authentication; seed superadmin accounts.
 
 Revision ID: 006
 Revises: 005
 Create Date: 2026-05-23
 """
+import uuid
+from datetime import datetime, timezone
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -15,12 +18,19 @@ depends_on = None
 # bcrypt hash for password "Welcome1"
 DEFAULT_PASSWORD_HASH = "$2b$12$nGwPJy69R1WSvqMWUlZiX.pPgLQqVyJt0DKXM71ku5V0JkxFDJZHW"
 
+# Superadmin accounts — phones stored normalized (+91 prefix) to match login lookup
+SUPERADMINS = [
+    {"phone": "+918871352717", "email": "iamashutoshpanda@gmail.com"},
+    {"phone": "+919498076092", "email": "iamashutoshpanda2@gmail.com"},
+]
+
 
 def upgrade() -> None:
     op.add_column("school_users", sa.Column("email", sa.String(255), nullable=True))
     op.add_column("school_users", sa.Column("password_hash", sa.String(255), nullable=True))
     op.create_index("ix_school_users_email", "school_users", ["email"], unique=False)
 
+    # Kept for migration chain integrity — dropped in 016_auth_cleanup
     op.create_table(
         "password_reset_tokens",
         sa.Column("id", sa.String(36), nullable=False),
@@ -35,26 +45,29 @@ def upgrade() -> None:
     )
 
     conn = op.get_bind()
-    conn.execute(
-        sa.text(
-            """
-            UPDATE school_users
-            SET email = :email, password_hash = :password_hash
-            WHERE phone = '8871352717' AND is_active = true
-            """
-        ),
-        {"email": "iamashutoshpanda@gmail.com", "password_hash": DEFAULT_PASSWORD_HASH},
-    )
-    conn.execute(
-        sa.text(
-            """
-            UPDATE school_users
-            SET email = :email, password_hash = :password_hash
-            WHERE phone = '9498076092' AND is_active = true
-            """
-        ),
-        {"email": "iamashutoshpanda2@gmail.com", "password_hash": DEFAULT_PASSWORD_HASH},
-    )
+    now = datetime.now(timezone.utc)
+
+    for sa_user in SUPERADMINS:
+        exists = conn.execute(
+            sa.text("SELECT 1 FROM school_users WHERE phone = :phone AND school_id IS NULL"),
+            {"phone": sa_user["phone"]},
+        ).fetchone()
+        if not exists:
+            conn.execute(
+                sa.text(
+                    """
+                    INSERT INTO school_users (id, school_id, role, phone, email, password_hash, is_active, created_at)
+                    VALUES (:id, NULL, 'superadmin', :phone, :email, :password_hash, true, :created_at)
+                    """
+                ),
+                {
+                    "id": str(uuid.uuid4()),
+                    "phone": sa_user["phone"],
+                    "email": sa_user["email"],
+                    "password_hash": DEFAULT_PASSWORD_HASH,
+                    "created_at": now,
+                },
+            )
 
 
 def downgrade() -> None:

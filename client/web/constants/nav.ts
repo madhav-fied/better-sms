@@ -29,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: 'Homework', href: '/homework', roles: ['admin', 'superadmin', 'teacher', 'student', 'parent'] },
   { label: 'Results', href: '/results', roles: ['admin', 'superadmin', 'teacher', 'student', 'parent'] },
+  { label: 'Fees', href: '/fees', roles: ['admin', 'superadmin', 'parent'] },
   { label: 'Leaves', href: '/leaves', roles: ['admin', 'superadmin', 'teacher', 'staff', 'student'] },
   {
     label: 'Communications', href: '/communications/notices', roles: ['admin', 'superadmin', 'teacher'],

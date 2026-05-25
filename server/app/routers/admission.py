@@ -6,8 +6,8 @@ from sqlalchemy import select, func, update as sa_update
 from app.database import get_db
 from app.deps import get_current_user, CurrentUser, require_admin
 from app.models.admission import Enquiry, Registration, ParentGuardian
-from app.models.core import AcademicYear
-from app.services.parent_auth import provision_parent_login, parent_guardian_provision_data, parent_guardian_row_data
+from app.models.core import AcademicYear, School
+from app.services.parent_auth import provision_parent_login, parent_guardian_row_data
 from app.schemas.admission import (
     EnquiryCreate, EnquiryUpdate, EnquiryOut,
     EnquiryStatusUpdate, RegistrationStatusUpdate,
@@ -15,27 +15,20 @@ from app.schemas.admission import (
     ParentGuardianOut, AdmitStudentIn,
 )
 from app.schemas.common import Response, ok, err
-from app.utils import normalize_phone
+from app.utils import normalize_phone, format_full_student_uid
 
 router = APIRouter()
 
 
 async def _add_registration_guardians(
     db: AsyncSession,
-    school_id: str,
     reg_id: str,
     guardians_data: list,
 ) -> None:
+    # Login provisioning requires a student_uid which doesn't exist yet at registration time.
+    # SchoolUser creation happens in admit_student once the student is admitted.
     for gd in guardians_data:
-        pg_dict = parent_guardian_provision_data(gd)
-        if not pg_dict.get("name"):
-            pg_dict["name"] = f"{pg_dict.get('first_name', '')} {pg_dict.get('last_name', '')}".strip()
-        parent_id = None
-        if pg_dict.get("phone"):
-            parent_id = await provision_parent_login(db, school_id, pg_dict)
         row = parent_guardian_row_data(gd)
-        if parent_id:
-            row["parent_id"] = parent_id
         db.add(ParentGuardian(registration_id=reg_id, **row))
 
 
@@ -171,7 +164,16 @@ async def convert_enquiry(
     )
     db.add(reg)
     await db.flush()
-    await _add_registration_guardians(db, school_id, reg.id, guardians_data)
+    await _add_registration_guardians(db, reg.id, guardians_data)
+    # Seed a guardian from the enquiry when none were supplied in the request
+    if not guardians_data and enq.parent_name:
+        db.add(ParentGuardian(
+            registration_id=reg.id,
+            relation="guardian",
+            name=enq.parent_name,
+            phone=enq.mobile,  # already normalized at enquiry creation
+            is_primary=True,
+        ))
     await db.flush()
     await db.refresh(reg)
     guardians_res = await db.execute(select(ParentGuardian).where(ParentGuardian.registration_id == reg.id))
@@ -240,7 +242,7 @@ async def create_registration(
     )
     db.add(reg)
     await db.flush()
-    await _add_registration_guardians(db, school_id, reg.id, guardians_data)
+    await _add_registration_guardians(db, reg.id, guardians_data)
     await db.flush()
     await db.refresh(reg)
     guardians_res = await db.execute(select(ParentGuardian).where(ParentGuardian.registration_id == reg.id))
@@ -370,13 +372,20 @@ async def admit_student(
         )
     else:
         count_q = select(func.count()).select_from(Student).where(Student.school_id == school_id)
-    count_res = await db.execute(count_q)
-    seq = (count_res.scalar_one() or 0) + 1
+    seq = (await db.execute(count_q)).scalar_one() + 1
     admission_no = f"{ay_year}{seq:04d}"
+
+    global_uid = (
+        await db.execute(select(func.coalesce(func.max(Student.student_uid), 0)))
+    ).scalar_one() + 1
+
+    school_res = await db.execute(select(School).where(School.id == school_id))
+    school = school_res.scalar_one_or_none()
 
     sf = reg.student_fields or {}
     student = Student(
         school_id=school_id,
+        student_uid=global_uid,
         academic_year_id=reg.academic_year_id,
         admission_no=admission_no,
         first_name=sf.get("first_name", ""),
@@ -385,6 +394,8 @@ async def admit_student(
         dob=sf.get("dob"),
         blood_group=sf.get("blood_group"),
         aadhar_no=sf.get("aadhar_no"),
+        sms_mobile=sf.get("sms_mobile"),
+        email=sf.get("email"),
         reg_no=str(reg.id)[:8],
         class_section_id=body.class_section_id,
         student_type=body.student_type,
@@ -396,11 +407,23 @@ async def admit_student(
     await db.flush()
     await db.refresh(student)
 
-    # Link parent_guardian rows from the registration to this student
+    # Link guardian rows to this student
     await db.execute(
         sa_update(ParentGuardian)
         .where(ParentGuardian.registration_id == reg.id, ParentGuardian.student_id.is_(None))
         .values(student_id=student.id)
     )
 
+    # Provision parent logins now that the student has a uid
+    if school:
+        full_uid = format_full_student_uid(school.school_code, student.student_uid)
+        pg_res = await db.execute(
+            select(ParentGuardian).where(ParentGuardian.registration_id == reg.id)
+        )
+        for pg in pg_res.scalars().all():
+            if pg.phone:
+                pg_dict = {"phone": pg.phone, "email": pg.email, "name": pg.name or ""}
+                await provision_parent_login(db, school_id, full_uid, pg_dict, pg.parent_id)
+
+    await db.flush()
     return ok(StudentOut.model_validate(student).model_dump())

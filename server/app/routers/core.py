@@ -31,7 +31,8 @@ async def create_school(
     _: None = Depends(require_superadmin),
     db: AsyncSession = Depends(get_db),
 ):
-    school = School(**body.model_dump())
+    max_code = (await db.execute(select(func.coalesce(func.max(School.school_code), 0)))).scalar_one()
+    school = School(school_code=max_code + 1, **body.model_dump())
     db.add(school)
     await db.flush()
     await db.refresh(school)

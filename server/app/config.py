@@ -9,16 +9,6 @@ class Settings(BaseSettings):
     # Auth
     session_ttl_days: int = 37
     superadmin_api_key: str = "dev-superadmin-key"
-    frontend_url: str = "http://localhost:3000"
-    password_reset_ttl_hours: int = 24
-    # Email (password reset)
-    email_dev_mode: bool = True
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    smtp_from: str = ""
-    smtp_use_tls: bool = True
 
     @field_validator("database_url", mode="before")
     @classmethod

@@ -95,6 +95,7 @@ export default function EnquiriesPage() {
               : items.map(
                   (e: {
                     id: string;
+                    enq_no: string;
                     student_name: string;
                     parent_name: string;
                     mobile: string;
@@ -109,6 +110,9 @@ export default function EnquiriesPage() {
                         >
                           {e.student_name}
                         </Link>
+                        {e.enq_no && (
+                          <p className="mt-0.5 text-xs text-slate-400">{e.enq_no}</p>
+                        )}
                       </TableCell>
                       <TableCell className="px-6 py-4 text-slate-600">{e.parent_name}</TableCell>
                       <TableCell className="px-6 py-4 text-slate-600">{e.mobile}</TableCell>

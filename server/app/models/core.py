@@ -12,6 +12,7 @@ class School(Base):
     __tablename__ = "schools"
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    school_code: Mapped[int] = mapped_column(sa.Integer, unique=True, nullable=False, default=0)
     name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     branch_name: Mapped[Optional[str]] = mapped_column(sa.String(255), nullable=True)
     address: Mapped[Optional[str]] = mapped_column(sa.Text, nullable=True)

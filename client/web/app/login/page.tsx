@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
@@ -50,7 +49,7 @@ export default function LoginPage() {
   const handleLogin = async () => {
     const id = identifier.trim();
     if (!id || !password) {
-      toast.error('Enter email/phone and password');
+      toast.error('Enter your phone or Student ID and password');
       return;
     }
     if (step === 'account' && !selectedUserId) {
@@ -74,7 +73,7 @@ export default function LoginPage() {
           setSelectedUserId(meta.accounts[0].user_id);
         }
         toast.message('Choose an account', {
-          description: 'This phone/email is linked to more than one role.',
+          description: 'This phone is linked to more than one school.',
         });
         return;
       }
@@ -91,7 +90,7 @@ export default function LoginPage() {
       const message =
         e.response?.data?.error
         ?? (typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg : undefined)
-        ?? 'Invalid email/phone or password';
+        ?? 'Invalid credentials';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -115,20 +114,20 @@ export default function LoginPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">School Management</p>
           <h1 className="text-2xl font-semibold text-slate-900">Edulink</h1>
           <p className="text-sm text-slate-600">
-            {step === 'credentials' ? 'Sign in with your email or phone number' : 'Select which account to use'}
+            {step === 'credentials' ? 'Sign in to your account' : 'Select which account to use'}
           </p>
         </div>
 
         {step === 'credentials' && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="login-identifier" className="text-slate-700">Email or phone</Label>
+              <Label htmlFor="login-identifier" className="text-slate-700">Phone or Student ID</Label>
               <Input
                 id="login-identifier"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="email@example.com or 10-digit phone"
+                placeholder="Phone number or SCH001-STU00001"
                 autoComplete="username"
                 className="border-slate-200"
               />
@@ -186,12 +185,6 @@ export default function LoginPage() {
             </Button>
           </>
         )}
-
-        <p className="text-center text-sm text-slate-600">
-          <Link href="/forgot-password" className="font-medium text-slate-900 underline-offset-4 hover:underline">
-            Forgot password
-          </Link>
-        </p>
       </div>
     </div>
   );

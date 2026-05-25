@@ -109,6 +109,8 @@ class StudentUpdate(BaseModel):
 class StudentOut(BaseModel):
     id: str
     school_id: str
+    student_uid: int
+    full_student_uid: Optional[str] = None
     academic_year_id: Optional[str] = None
     admission_no: str
     first_name: str

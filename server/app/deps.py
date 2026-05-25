@@ -1,6 +1,6 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -100,5 +100,5 @@ def require_teacher(user: CurrentUser):
 
 
 def require_staff(user: CurrentUser):
-    if user["role"] not in ("superadmin", "admin", "teacher", "staff"):
+    if user["role"] not in ("superadmin", "admin", "teacher"):
         raise HTTPException(status_code=403, detail="Staff role required")

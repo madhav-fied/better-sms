@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/client';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { toast } from 'sonner';
 import PageHeader from '@/components/layout/PageHeader';
 import DataSection from '@/components/enterprise/DataSection';
 import EmptyState from '@/components/enterprise/EmptyState';
+import { RegisterSchoolDialog } from '@/components/schools/RegisterSchoolDialog';
 import {
   Table,
   TableBody,
@@ -21,6 +23,7 @@ import {
 
 export default function SchoolsPage() {
   const qc = useQueryClient();
+  const [registerOpen, setRegisterOpen] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ['schools'],
     queryFn: () => apiClient.get('/schools').then((r) => r.data?.data ?? []),
@@ -36,9 +39,13 @@ export default function SchoolsPage() {
 
   return (
     <div className="space-y-6">
+      <RegisterSchoolDialog open={registerOpen} onOpenChange={setRegisterOpen} />
       <PageHeader
         title="Schools"
         description="Select a school to manage its data. Superadmin can switch between schools."
+        actions={
+          <Button onClick={() => setRegisterOpen(true)}>+ Register school</Button>
+        }
       />
 
       <DataSection title="All schools">

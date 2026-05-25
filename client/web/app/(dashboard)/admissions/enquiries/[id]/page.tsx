@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getEnquiry, convertEnquiry } from '@/lib/api/admissions';
+import { getClassSections } from '@/lib/api/students';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,13 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
   const { data: activeAy } = useActiveAY();
   const { data, isLoading } = useQuery({ queryKey: ['enquiry', id], queryFn: () => getEnquiry(id) });
+  const { data: sectionsData } = useQuery({ queryKey: ['class-sections'], queryFn: () => getClassSections() });
   const e = data?.data;
+
+  const sections: { id: string; class_name: string; section: string }[] = sectionsData?.data ?? [];
+  const sectionLabel = e?.class_section_id
+    ? sections.find((s) => s.id === e.class_section_id)
+    : null;
 
   const convertMutation = useMutation({
     mutationFn: () => {
@@ -61,10 +68,14 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
 
       <DataSection title="Enquiry details">
         <dl className="divide-y divide-slate-200 px-6">
-          <DetailRow label="Enquiry no" value={e.enq_no} />
+          <DetailRow label="Enquiry no." value={e.enq_no} />
           <DetailRow label="Parent" value={e.parent_name} />
           <DetailRow label="Mobile" value={e.mobile} />
-          <DetailRow label="Date" value={e.date} />
+          <DetailRow label="Date" value={String(e.date)} />
+          {e.dob && <DetailRow label="Date of birth" value={String(e.dob)} />}
+          {sectionLabel && (
+            <DetailRow label="Intended class" value={`${sectionLabel.class_name} ${sectionLabel.section}`} />
+          )}
           {e.notes && <DetailRow label="Notes" value={e.notes} />}
         </dl>
       </DataSection>
@@ -80,8 +91,8 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 py-4 sm:grid-cols-[140px_1fr]">
-      <dt className="text-sm font-medium text-slate-600">{label}</dt>
+    <div className="grid gap-1 py-4 sm:grid-cols-[160px_1fr]">
+      <dt className="text-sm font-medium text-slate-500">{label}</dt>
       <dd className="text-sm text-slate-900">{value}</dd>
     </div>
   );

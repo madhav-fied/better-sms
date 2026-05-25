@@ -53,7 +53,6 @@ class ParentGuardianCreate(BaseModel):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
-    login_password: Optional[str] = None
     occupation: Optional[str] = None
     is_primary: bool = False
     qualification: Optional[str] = None
@@ -75,8 +74,6 @@ class ParentGuardianCreate(BaseModel):
     def normalize_fields(cls, data):
         if not isinstance(data, dict):
             return data
-        if data.get("password") and not data.get("login_password"):
-            data["login_password"] = data.pop("password")
         if data.get("mobile") and not data.get("phone"):
             data["phone"] = data["mobile"]
         name = (data.get("name") or "").strip() or None
@@ -88,18 +85,6 @@ class ParentGuardianCreate(BaseModel):
                 data["last_name"] = parts[1]
         return data
 
-    @model_validator(mode="after")
-    def require_login_credentials(self) -> "ParentGuardianCreate":
-        has_phone = bool(self.phone and self.phone.strip())
-        has_email = bool(self.email and self.email.strip())
-        has_password = bool(self.login_password)
-        if has_phone and (has_email or has_password):
-            if not has_email:
-                raise ValueError("Parent email is required for login access")
-            if not has_password:
-                raise ValueError("Parent password is required for login access")
-        return self
-
 
 class ParentGuardianUpdate(BaseModel):
     relation: Optional[ParentRelation] = None
@@ -108,7 +93,6 @@ class ParentGuardianUpdate(BaseModel):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
-    login_password: Optional[str] = None
     occupation: Optional[str] = None
     is_primary: Optional[bool] = None
     qualification: Optional[str] = None

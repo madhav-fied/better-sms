@@ -44,6 +44,7 @@ class Student(Base):
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     school_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("schools.id"), nullable=False)
+    student_uid: Mapped[int] = mapped_column(sa.Integer, unique=True, nullable=False, default=0)
     academic_year_id: Mapped[Optional[str]] = mapped_column(sa.String(36), sa.ForeignKey("academic_years.id"), nullable=True)
     admission_no: Mapped[str] = mapped_column(sa.String(50), nullable=False)
     first_name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
