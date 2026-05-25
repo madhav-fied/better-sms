@@ -18,6 +18,7 @@ function collectAllowedPaths(role: Role): string[] {
   if (role === 'parent') {
     paths.add('/communications/concerns/new');
     paths.add('/timetable');
+    paths.add('/fees');
   }
   if (role === 'student') {
     paths.add('/timetable');
