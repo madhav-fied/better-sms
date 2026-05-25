@@ -69,7 +69,6 @@ async def login(body: LoginBody, db: AsyncSession = Depends(get_db)):
         user = res.scalar_one_or_none()
         if not user or not user.password_hash:
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        # Parent's password is their phone number — normalize before verifying
         if not verify_password(normalize_phone(body.password), user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         return ok(await create_user_session(db, user))
